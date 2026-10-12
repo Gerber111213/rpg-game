@@ -60,7 +60,6 @@ class Game3D {
     this.donut = new Donut3D(this.scene, spawnX - 2, spawnZ);
     this.mordecai = new Mordecai3D(this.scene, spawnX + 3, spawnZ);
 
-    // --- TWICE AS BRIGHT AND LARGE TORCH LIGHT ---
     this.carlLight = new THREE.PointLight(0xff9944, 6.4, 28);
     this.carlLight.position.set(spawnX, 2.0, spawnZ);
     this.scene.add(this.carlLight);
@@ -77,7 +76,7 @@ class Game3D {
     this.setupInputs();
     this.clock = new THREE.Clock();
 
-    logMessage(`[SYSTEM AI]: Torch intensity increased. Explore the deeper shadows, Crawler.`, 'sys-msg');
+    logMessage(`[SYSTEM AI]: Floor 1 initialized. Left-click monsters to attack in melee. Press '1' for Magic Missile!`, 'sys-msg');
 
     this.animate();
   }
@@ -123,11 +122,43 @@ class Game3D {
         const clickedMesh = hitMonsters[0].object;
         const targetMonster = this.monsters.find(m => m.torso === clickedMesh || m.group.children.includes(clickedMesh));
         if (targetMonster && !targetMonster.isDead) {
-          const defeated = targetMonster.takeDamage(20);
-          logMessage(`CARL strikes ${targetMonster.name} for 20 damage!`, 'combat-msg');
-          if (defeated) {
-            this.combat.handleCorpseCollapse(targetMonster);
-            logMessage(`${targetMonster.name} was obliterated! Corpse ready for looting.`, 'sys-msg');
+          const dist = this.carl.getPosition().distanceTo(targetMonster.group.position);
+          if (dist < 4.0) {
+            const defeated = targetMonster.takeDamage(25);
+            logMessage(`CARL strikes ${targetMonster.name} with feet/melee for 25 damage!`, 'combat-msg');
+            if (defeated) {
+              this.combat.handleCorpseCollapse(targetMonster);
+              logMessage(`${targetMonster.name} was obliterated! Corpse ready for looting.`, 'sys-msg');
+            }
+          } else {
+            logMessage(`Too far to strike! Get closer to ${targetMonster.name}.`, 'sys-msg');
+          }
+          return;
+        }
+      }
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'i' || e.key === 'I') {
+        const modal = document.getElementById('inventory-modal');
+        if (modal) modal.classList.toggle('hidden');
+      }
+      if (e.key === '1') {
+        // Cast Magic Missile at nearest monster
+        const liveMonsters = this.monsters.filter(m => !m.isDead);
+        if (liveMonsters.length > 0) {
+          const nearest = liveMonsters.reduce((prev, curr) => 
+            prev.group.position.distanceTo(this.carl.getPosition()) < curr.group.position.distanceTo(this.carl.getPosition()) ? prev : curr
+          );
+          if (nearest.group.position.distanceTo(this.carl.getPosition()) < 16.0) {
+            const defeated = nearest.takeDamage(40);
+            logMessage(`CARL casts MAGIC MISSILE! 40 arcane damage dealt to ${nearest.name}!`, 'combat-msg');
+            if (defeated) {
+              this.combat.handleCorpseCollapse(nearest);
+              logMessage(`${nearest.name} was obliterated by magic!`, 'sys-msg');
+            }
+          } else {
+            logMessage(`Targets too far away for Magic Missile.`, 'sys-msg');
           }
         }
       }
@@ -160,13 +191,6 @@ class Game3D {
         }
       }
       this.hideContextMenu();
-    });
-
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'i' || e.key === 'I') {
-        const modal = document.getElementById('inventory-modal');
-        if (modal) modal.classList.toggle('hidden');
-      }
     });
   }
 
@@ -209,8 +233,16 @@ class Game3D {
     this.carl.moveTo(this.targetPos, delta);
     this.donut.follow(this.carl.getPosition(), delta);
 
+    // Update Monster AI & Floating UI
     for (let m of this.monsters) {
-      m.updateAI(this.carl.getPosition(), delta);
+      m.updateAI(this.carl.getPosition(), delta, (damage) => {
+        this.carl.hp = Math.max(0, this.carl.hp - damage);
+        logMessage(`[COMBAT]: ${m.name} strikes Carl for ${damage} damage! (Carl HP: ${this.carl.hp}/100)`, 'combat-msg');
+        if (this.carl.hp <= 0) {
+          logMessage(`[FATAL]: Crawler Carl has perished on Floor 1!`, 'sys-msg');
+        }
+      });
+      m.updateUI(this.camera, this.renderer);
     }
 
     const carlPos = this.carl.getPosition();
