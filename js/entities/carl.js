@@ -7,10 +7,16 @@ export class Carl3D {
     this.name = "Carl";
 
     const textureLoader = new THREE.TextureLoader();
-    this.texture = textureLoader.load('assets/carl_walk.png');
-    this.texture.magFilter = THREE.NearestFilter; // Crisp pixel art scaling
+    this.texture = textureLoader.load('assets/carl_walk.png', (tex) => {
+      // Slice the spritesheet: 4 columns by 4 rows (assuming 48x48 per frame)
+      tex.repeat.set(0.25, 0.25);
+      tex.offset.set(0, 0.75); // Show bottom-left frame (Frame 0)
+      tex.magFilter = THREE.NearestFilter;
+      tex.minFilter = THREE.NearestFilter;
+      tex.needsUpdate = true;
+    });
 
-    const material = new THREE.SpriteMaterial({ map: this.texture });
+    const material = new THREE.SpriteMaterial({ map: this.texture, transparent: true });
     this.sprite = new THREE.Sprite(material);
     this.sprite.scale.set(2.5, 2.5, 1);
     this.sprite.position.set(x, 1.25, z);
