@@ -17,8 +17,6 @@ class Carl extends Phaser.Physics.Arcade.Sprite {
     scene.add.existing(this);
     scene.physics.add.existing(this);
     this.setCollideWorldBounds(true);
-    
-    // Adjusted body size for 48x48 grid
     this.body.setSize(20, 16); 
     this.body.setOffset(14, 30);
 
@@ -26,7 +24,6 @@ class Carl extends Phaser.Physics.Arcade.Sprite {
     this.speed = 180;
     this.currentDirection = 'south';
   }
-  // ... rest of Carl class
 
   moveToTarget(targetX, targetY) {
     const dist = Phaser.Math.Distance.Between(this.x, this.y, targetX, targetY);
@@ -75,7 +72,7 @@ class Donut extends Phaser.Physics.Arcade.Sprite {
     scene.physics.add.existing(this);
     this.setCollideWorldBounds(true);
     this.body.setSize(18, 14);
-    this.body.setOffset(3, 10);
+    this.body.setOffset(15, 17);
 
     this.speed = 170;
     this.currentDirection = 'south';
@@ -169,25 +166,23 @@ class DungeonScene extends Phaser.Scene {
     super({ key: 'DungeonScene' });
   }
 
-preload() {
-    // If your spritesheet uses 48x48 frames, change frameWidth and frameHeight below:
+  preload() {
     this.load.spritesheet('carl_walk', 'assets/carl_walk.png', { frameWidth: 48, frameHeight: 48 });
     this.load.spritesheet('donut_walk', 'assets/donut_walk.png', { frameWidth: 48, frameHeight: 48 });
 
-    // Procedural Floor, Wall, and Placeholder Textures...
     const g = this.make.graphics({ x: 0, y: 0, add: false });
     
-    // Spooky Dungeon Floor Texture
+    // Spooky Dungeon Floor
     g.fillStyle(0x15141c, 1); g.fillRect(0, 0, 48, 48);
     g.lineStyle(1, 0x08070a, 1); g.beginPath(); g.moveTo(10, 0); g.lineTo(18, 22); g.lineTo(38, 44); g.strokePath();
     g.generateTexture('floor', 48, 48); g.clear();
     
-    // Dungeon Wall Texture
+    // Dungeon Wall
     g.fillStyle(0x282633, 1); g.fillRect(0, 0, 48, 48);
     g.lineStyle(2, 0x14131a, 1); g.strokeRect(0, 0, 48, 48);
     g.generateTexture('wall', 48, 48); g.clear();
     
-    // Entity shapes
+    // Entity Placeholders
     g.fillStyle(0x44cc44, 1); g.fillRect(0, 0, 24, 24); g.generateTexture('goblin', 24, 24); g.clear();
     g.fillStyle(0x8b5a2b, 1); g.fillRect(0, 0, 28, 28); g.generateTexture('mordecai', 28, 28); g.clear();
     g.fillStyle(0x00e5ff, 1); g.fillCircle(6, 6, 6); g.generateTexture('missile', 12, 12); g.clear();
@@ -195,21 +190,21 @@ preload() {
 
   create() {
     this.game.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-
-    // 1. Animations setup
     this.setupAnimations();
 
     this.tileSize = 48;
-    this.mapCols = 60;
-    this.mapRows = 60;
+    this.mapCols = 250; // Massive 250x250 scale dungeon floor
+    this.mapRows = 250;
+    
     this.walls = this.physics.add.staticGroup();
     this.enemies = this.physics.add.group();
     this.projectiles = this.physics.add.group();
 
-    // 2. PROCEDURAL DUNGEON GENERATOR
-    const rooms = this.generateProceduralDungeon();
+    // 1. Generate Massive Hallway & Room Dungeon Grid in Memory
+    this.dungeonGrid = Array.from({ length: this.mapRows }, () => Array(this.mapCols).fill(0));
+    const rooms = this.generateMassiveRoomsAndCorridors();
 
-    // 3. SPAWN ENTITIES IN CARVED ROOMS
+    // 2. Spawn Characters in First Room
     const spawnRoom = rooms[0];
     const spawnX = (spawnRoom.x + Math.floor(spawnRoom.w / 2)) * this.tileSize;
     const spawnY = (spawnRoom.y + Math.floor(spawnRoom.h / 2)) * this.tileSize;
@@ -218,22 +213,18 @@ preload() {
     this.donut = new Donut(this, spawnX - 30, spawnY);
     this.mordecai = new Mordecai(this, spawnX + 40, spawnY);
 
-    // Populate other rooms with Goblins
+    // Populate Goblins across rooms
     for (let i = 1; i < rooms.length; i++) {
       const room = rooms[i];
-      const gx = (room.x + Math.floor(room.w / 2)) * this.tileSize;
-      const gy = (room.y + Math.floor(room.h / 2)) * this.tileSize;
-      const goblin = new Enemy(this, gx, gy, 'goblin', `Goblin Scavenger ${i}`, 30, 5);
-      this.enemies.add(goblin);
+      if (Math.random() > 0.3) {
+        const gx = (room.x + Math.floor(room.w / 2)) * this.tileSize;
+        const gy = (room.y + Math.floor(room.h / 2)) * this.tileSize;
+        const goblin = new Enemy(this, gx, gy, 'goblin', `Goblin Scavenger ${i}`, 30, 5);
+        this.enemies.add(goblin);
+      }
     }
 
-    // Collisions
-    this.physics.add.collider(this.carl, this.walls);
-    this.physics.add.collider(this.donut, this.walls);
-    this.physics.add.collider(this.mordecai, this.walls);
-    this.physics.add.collider(this.enemies, this.walls);
-
-    // Camera (Lock on Carl, Zoomed in 2.2x)
+    // Set world bounds & camera
     this.cameras.main.setBounds(0, 0, this.mapCols * this.tileSize, this.mapRows * this.tileSize);
     this.cameras.main.startFollow(this.carl, true, 0.1, 0.1);
     this.cameras.main.setZoom(2.2);
@@ -242,9 +233,14 @@ preload() {
     this.targetY = this.carl.y;
     this.donutCooldown = 0;
 
-    logMessage(`[SYSTEM AI]: Floor 1 Labyrinth generated with ${rooms.length} rooms.`, 'sys-msg');
+    // Tile management structures for Line of Sight & Rendering
+    this.activeTileSprites = new Map(); // key: "x,y", value: sprite object
+    this.lastCarlTileX = -999;
+    this.lastCarlTileY = -999;
 
-    // Click Input Handler
+    logMessage(`[SYSTEM AI]: Floor 1 massive labyrinth generated (${this.mapCols}x${this.mapRows} grid, ${rooms.length} rooms). Line of Sight active.`, 'sys-msg');
+
+    // Input Handler
     this.input.on('pointerdown', (pointer) => {
       if (pointer.rightButtonDown() || pointer.button === 2) {
         this.handleRightClick(pointer);
@@ -256,31 +252,28 @@ preload() {
     });
   }
 
-  // --- PROCEDURAL GENERATION ALGORITHM ---
-  generateProceduralDungeon() {
-    // 0 = Wall, 1 = Floor
-    const grid = Array.from({ length: this.mapRows }, () => Array(this.mapCols).fill(0));
+  // --- MASSIVE DUNGEON GENERATOR (Rooms & Hallways) ---
+  generateMassiveRoomsAndCorridors() {
     const rooms = [];
-    const minRoomSize = 6;
-    const maxRoomSize = 12;
-    const maxRooms = 15;
+    const minSize = 6;
+    const maxSize = 14;
+    const targetRooms = 80;
 
-    for (let r = 0; r < maxRooms; r++) {
-      const w = Phaser.Math.Between(minRoomSize, maxRoomSize);
-      const h = Phaser.Math.Between(minRoomSize, maxRoomSize);
-      const x = Phaser.Math.Between(2, this.mapCols - w - 2);
-      const y = Phaser.Math.Between(2, this.mapRows - h - 2);
+    for (let i = 0; i < targetRooms; i++) {
+      const w = Phaser.Math.Between(minSize, maxSize);
+      const h = Phaser.Math.Between(minSize, maxSize);
+      const x = Phaser.Math.Between(3, this.mapCols - w - 3);
+      const y = Phaser.Math.Between(3, this.mapRows - h - 3);
 
       const newRoom = { x, y, w, h };
-
-      // Check overlap with existing rooms
       let overlaps = false;
+
       for (let existing of rooms) {
         if (
-          newRoom.x < existing.x + existing.w + 2 &&
-          newRoom.x + newRoom.w + 2 > existing.x &&
-          newRoom.y < existing.y + existing.h + 2 &&
-          newRoom.y + newRoom.h + 2 > existing.y
+          newRoom.x < existing.x + existing.w + 3 &&
+          newRoom.x + newRoom.w + 3 > existing.x &&
+          newRoom.y < existing.y + existing.h + 3 &&
+          newRoom.y + newRoom.h + 3 > existing.y
         ) {
           overlaps = true;
           break;
@@ -288,77 +281,143 @@ preload() {
       }
 
       if (!overlaps) {
-        // Carve room floor
+        // Carve room
         for (let rx = x; rx < x + w; rx++) {
           for (let ry = y; ry < y + h; ry++) {
-            grid[ry][rx] = 1;
+            this.dungeonGrid[ry][rx] = 1; // 1 = Floor
           }
         }
 
-        // Connect room to previous room via hallway corridor
+        // Connect with hallways to previous room
         if (rooms.length > 0) {
           const prev = rooms[rooms.length - 1];
-          const prevCenterX = Math.floor(prev.x + prev.w / 2);
-          const prevCenterY = Math.floor(prev.y + prev.h / 2);
-          const newCenterX = Math.floor(x + w / 2);
-          const newCenterY = Math.floor(y + h / 2);
+          const prevX = Math.floor(prev.x + prev.w / 2);
+          const prevY = Math.floor(prev.y + prev.h / 2);
+          const currX = Math.floor(x + w / 2);
+          const currY = Math.floor(y + h / 2);
 
           if (Math.random() > 0.5) {
-            this.carveHorizontalCorridor(grid, prevCenterX, newCenterX, prevCenterY);
-            this.carveVerticalCorridor(grid, prevCenterY, newCenterY, newCenterX);
+            this.carveHallwayH(prevX, currX, prevY);
+            this.carveHallwayV(prevY, currY, currX);
           } else {
-            this.carveVerticalCorridor(grid, prevCenterY, newCenterY, prevCenterX);
-            this.carveHorizontalCorridor(grid, prevCenterX, newCenterX, newCenterY);
+            this.carveHallwayV(prevY, currY, prevX);
+            this.carveHallwayH(prevX, currX, currY);
           }
         }
-
         rooms.push(newRoom);
       }
     }
+    return rooms;
+  }
 
-    // Render Tiles into Phaser Physics World
-    for (let r = 0; r < this.mapRows; r++) {
-      for (let c = 0; c < this.mapCols; c++) {
-        const posX = c * this.tileSize + this.tileSize / 2;
-        const posY = r * this.tileSize + this.tileSize / 2;
+  carveHallwayH(x1, x2, y) {
+    for (let x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) {
+      this.dungeonGrid[y][x] = 1;
+      this.dungeonGrid[y + 1][x] = 1; // 2-tile wide hallway
+    }
+  }
 
-        if (grid[r][c] === 1) {
-          this.add.image(posX, posY, 'floor');
-        } else {
-          this.walls.create(posX, posY, 'wall');
+  carveHallwayV(y1, y2, x) {
+    for (let y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) {
+      this.dungeonGrid[y][x] = 1;
+      this.dungeonGrid[y][x + 1] = 1;
+    }
+  }
+
+  // --- LINE OF SIGHT & DYNAMIC RENDERING UPDATE ---
+  updateVisionAndTiles() {
+    const carlTileX = Math.floor(this.carl.x / this.tileSize);
+    const carlTileY = Math.floor(this.carl.y / this.tileSize);
+
+    // Only recalculate when Carl moves to a new tile
+    if (carlTileX === this.lastCarlTileX && carlTileY === this.lastCarlTileY) return;
+    this.lastCarlTileX = carlTileX;
+    this.lastCarlTileY = carlTileY;
+
+    const sightRange = 6;
+    const visibleKeys = new Set();
+
+    // Check tiles within range + boundary buffer
+    for (let ty = carlTileY - sightRange - 2; ty <= carlTileY + sightRange + 2; ty++) {
+      for (let tx = carlTileX - sightRange - 2; tx <= carlTileX + sightRange + 2; tx++) {
+        if (tx < 0 || tx >= this.mapCols || ty < 0 || ty >= this.mapRows) continue;
+
+        const dist = Math.hypot(tx - carlTileX, ty - carlTileY);
+        if (dist <= sightRange + 0.5) {
+          // Check line of sight (Raycast)
+          if (this.hasLineOfSight(carlTileX, carlTileY, tx, ty)) {
+            const key = `${tx},${ty}`;
+            visibleKeys.add(key);
+
+            if (!this.activeTileSprites.has(key)) {
+              const posX = tx * this.tileSize + this.tileSize / 2;
+              const posY = ty * this.tileSize + this.tileSize / 2;
+              const isFloor = this.dungeonGrid[ty][tx] === 1;
+              const texture = isFloor ? 'floor' : 'wall';
+              
+              const img = this.add.image(posX, posY, texture);
+              img.setDepth(isFloor ? 0 : 5);
+              this.activeTileSprites.set(key, img);
+
+              // Add static physics collider for walls if not already present
+              if (!isFloor) {
+                this.walls.create(posX, posY, 'wall');
+              }
+            } else {
+              this.activeTileSprites.get(key).setVisible(true);
+            }
+          }
         }
       }
     }
 
-    return rooms;
-  }
-
-  carveHorizontalCorridor(grid, x1, x2, y) {
-    const min = Math.min(x1, x2);
-    const max = Math.max(x1, x2);
-    for (let x = min; x <= max; x++) {
-      grid[y][x] = 1;
-      grid[y + 1][x] = 1; // Make corridor 2 tiles wide for easy navigation
+    // Hide tiles outside current line of sight
+    for (let [key, sprite] of this.activeTileSprites.entries()) {
+      if (!visibleKeys.has(key)) {
+        sprite.setVisible(false);
+      }
     }
   }
 
-  carveVerticalCorridor(grid, y1, y2, x) {
-    const min = Math.min(y1, y2);
-    const max = Math.max(y1, y2);
-    for (let y = min; y <= max; y++) {
-      grid[y][x] = 1;
-      grid[y][x + 1] = 1; // Make corridor 2 tiles wide
+  // Raycast to check if line of sight is blocked by walls
+  hasLineOfSight(x0, y0, x1, y1) {
+    let dx = Math.abs(x1 - x0);
+    let dy = Math.abs(y1 - y0);
+    let sx = (x0 < x1) ? 1 : -1;
+    let sy = (y0 < y1) ? 1 : -1;
+    let err = dx - dy;
+
+    let cx = x0;
+    let cy = y0;
+
+    while (true) {
+      if (cx === x1 && cy === y1) return true;
+
+      // If we hit a wall along the ray before reaching the target (and it's not the start tile)
+      if ((cx !== x0 || cy !== y0) && this.dungeonGrid[cy][cx] === 0) {
+        // Allow seeing the wall tile itself if it's the direct endpoint
+        if (cx === x1 && cy === y1) return true;
+        return false;
+      }
+
+      let e2 = 2 * err;
+      if (e2 > -dy) {
+        err -= dy;
+        cx += sx;
+      }
+      if (e2 < dx) {
+        err += dx;
+        cy += sy;
+      }
     }
   }
 
   setupAnimations() {
-    // Carl Animations
     this.anims.create({ key: 'carl_walk_south', frames: this.anims.generateFrameNumbers('carl_walk', { start: 1, end: 3 }), frameRate: 8, repeat: -1 });
     this.anims.create({ key: 'carl_walk_east', frames: this.anims.generateFrameNumbers('carl_walk', { start: 5, end: 7 }), frameRate: 8, repeat: -1 });
     this.anims.create({ key: 'carl_walk_north', frames: this.anims.generateFrameNumbers('carl_walk', { start: 9, end: 11 }), frameRate: 8, repeat: -1 });
     this.anims.create({ key: 'carl_walk_west', frames: this.anims.generateFrameNumbers('carl_walk', { start: 13, end: 15 }), frameRate: 8, repeat: -1 });
 
-    // Donut Animations
     this.anims.create({ key: 'donut_walk_south', frames: this.anims.generateFrameNumbers('donut_walk', { start: 1, end: 3 }), frameRate: 8, repeat: -1 });
     this.anims.create({ key: 'donut_walk_east', frames: this.anims.generateFrameNumbers('donut_walk', { start: 5, end: 7 }), frameRate: 8, repeat: -1 });
     this.anims.create({ key: 'donut_walk_north', frames: this.anims.generateFrameNumbers('donut_walk', { start: 9, end: 11 }), frameRate: 8, repeat: -1 });
@@ -368,6 +427,9 @@ preload() {
   update() {
     this.carl.moveToTarget(this.targetX, this.targetY);
     this.donut.follow(this.carl.x, this.carl.y);
+
+    // Update dynamic field of view & visible tiles based on Carl's position
+    this.updateVisionAndTiles();
 
     // Donut Combat AI
     if (this.donutCooldown <= 0) {
@@ -400,7 +462,6 @@ preload() {
     const worldX = pointer.worldX; 
     const worldY = pointer.worldY;
 
-    // Check Donut
     const donutBounds = new Phaser.Geom.Rectangle(this.donut.x - 12, this.donut.y - 12, 24, 24);
     if (donutBounds.contains(worldX, worldY)) {
       this.addMenuOption("Examine Princess Donut", () => {
@@ -411,7 +472,6 @@ preload() {
       });
     }
 
-    // Check Mordecai
     const mordecaiBounds = new Phaser.Geom.Rectangle(this.mordecai.x - 14, this.mordecai.y - 14, 28, 28);
     if (mordecaiBounds.contains(worldX, worldY)) {
       this.addMenuOption("Talk to Mordecai", () => {
@@ -419,7 +479,6 @@ preload() {
       });
     }
 
-    // Check Enemies
     const clickedEnemy = this.enemies.getChildren().find(e => e.getBounds().contains(worldX, worldY));
     if (clickedEnemy) {
       this.addMenuOption(`Attack ${clickedEnemy.name}`, () => {
@@ -436,7 +495,7 @@ preload() {
 
     contextMenu.style.left = `${pointer.event.clientX}px`;
     contextMenu.style.top = `${pointer.event.clientY}px`;
-    contextMenu.classList.remove('hidden');
+    contextMenu.classList.add('hidden');
   }
 
   addMenuOption(text, action) {
@@ -456,7 +515,7 @@ const config = {
   type: Phaser.AUTO,
   width: window.innerWidth,
   height: window.innerHeight,
-  backgroundColor: '#08080a',
+  backgroundColor: '#000000',
   physics: {
     default: 'arcade',
     arcade: { gravity: { y: 0 }, debug: false }
