@@ -57,9 +57,15 @@ class Game3D {
     const spawnX = spawnRoom.x * 4 + (spawnRoom.w * 2);
     const spawnZ = spawnRoom.y * 4 + (spawnRoom.h * 2);
 
-    this.carl = new Carl3D(this.scene, spawnX, spawnZ this.mapData.grid);
+    // Pass dungeon grid to Carl for collision barriers
+    this.carl = new Carl3D(this.scene, spawnX, spawnZ, this.mapData.grid);
     this.donut = new Donut3D(this.scene, spawnX - 2, spawnZ);
     this.mordecai = new Mordecai3D(this.scene, spawnX + 3, spawnZ);
+
+    // Character local area lighting (Torch glow around Carl)
+    this.carlLight = new THREE.PointLight(0xff9944, 2.8, 14);
+    this.carlLight.position.set(spawnX, 2.0, spawnZ);
+    this.scene.add(this.carlLight);
 
     this.monsters = [];
     this.projectiles = [];
@@ -190,6 +196,8 @@ class Game3D {
     }
 
     const carlPos = this.carl.getPosition();
+    this.carlLight.position.set(carlPos.x, carlPos.y + 2.0, carlPos.z);
+
     this.camera.position.copy(carlPos).add(this.cameraOffset);
     this.camera.lookAt(carlPos.x, carlPos.y + 1, carlPos.z);
 
