@@ -111,20 +111,18 @@ export class DungeonBuilder {
     this.scene.add(stairGroup);
   }
 
-  createStoneBumpMap() {
+  createCinderblockBumpMap() {
     const canvas = document.createElement('canvas');
     canvas.width = 256;
     canvas.height = 256;
     const ctx = canvas.getContext('2d');
 
-    // Base mortar grout
-    ctx.fillStyle = '#444444';
+    ctx.fillStyle = '#333333';
     ctx.fillRect(0, 0, 256, 256);
 
-    // Stone blocks
     ctx.fillStyle = '#cccccc';
-    const rows = 8;
-    const cols = 4;
+    const rows = 12;
+    const cols = 6;
     const rh = 256 / rows;
     const cw = 256 / cols;
 
@@ -149,14 +147,13 @@ export class DungeonBuilder {
     const floorMat = new THREE.MeshLambertMaterial({ color: 0x4a3b32 });
     const safeFloorMat = new THREE.MeshLambertMaterial({ color: 0x2b4c66 });
 
-    // Procedural 3D Stone Brick Relief Texture using MeshStandardMaterial + BumpMap
-    const stoneBump = this.createStoneBumpMap();
+    const cinderBump = this.createCinderblockBumpMap();
     const wallMat = new THREE.MeshStandardMaterial({ 
-      color: 0x6e6875,
-      roughness: 0.8,
-      metalness: 0.2,
-      bumpMap: stoneBump,
-      bumpScale: 0.25 // Creates tactile 3D brick depth reacting to torch light
+      color: 0x77727e,
+      roughness: 0.85,
+      metalness: 0.1,
+      bumpMap: cinderBump,
+      bumpScale: 0.35
     });
 
     for (let r = 0; r < this.gridRows; r++) {
@@ -189,44 +186,46 @@ export class DungeonBuilder {
     const frameMat = new THREE.MeshLambertMaterial({ color: 0x7f8c8d });
     const lightMat = new THREE.MeshBasicMaterial({ color: 0x2ecc71 });
 
+    let count = 0;
     for (let room of this.rooms) {
       if (room.isSafe) {
-        const doorCol = room.x + Math.floor(room.w / 2);
-        const doorRow = room.y - 1;
+        // Build two doors for starting room (Intro and Dungeon World), single doors elsewhere
+        const colsToCheck = count === 0 ? [room.x + 2, room.x + room.w - 3] : [room.x + Math.floor(room.w / 2)];
+        
+        for (let doorCol of colsToCheck) {
+          const doorRow = room.y - 1;
+          if (doorRow >= 0 && this.grid[doorRow][doorCol] === 1) {
+            const doorX = doorCol * this.tileSize;
+            const doorZ = doorRow * this.tileSize;
 
-        if (doorRow >= 0 && this.grid[doorRow][doorCol] === 1) {
-          const doorX = doorCol * this.tileSize;
-          const doorZ = doorRow * this.tileSize;
+            const doorGroup = new THREE.Group();
+            const frame = new THREE.Mesh(new THREE.BoxGeometry(this.tileSize, 4.5, 0.6), frameMat);
+            frame.position.set(0, 2.25, 0);
+            doorGroup.add(frame);
 
-          const doorGroup = new THREE.Group();
+            const panel = new THREE.Mesh(new THREE.BoxGeometry(this.tileSize - 0.4, 4.0, 0.4), doorMat);
+            panel.position.set(0, 2.0, 0);
+            doorGroup.add(panel);
 
-          const frameGeo = new THREE.BoxGeometry(this.tileSize, 4.5, 0.6);
-          const frame = new THREE.Mesh(frameGeo, frameMat);
-          frame.position.set(0, 2.25, 0);
-          doorGroup.add(frame);
+            const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), lightMat);
+            beacon.position.set(0, 4.0, 0.3);
+            doorGroup.add(beacon);
 
-          const panelGeo = new THREE.BoxGeometry(this.tileSize - 0.4, 4.0, 0.4);
-          const panel = new THREE.Mesh(panelGeo, doorMat);
-          panel.position.set(0, 2.0, 0);
-          doorGroup.add(panel);
+            const beaconLight = new THREE.PointLight(0x2ecc71, 2.0, 6);
+            beaconLight.position.set(doorX, 4.0, doorZ);
+            this.scene.add(beaconLight);
 
-          const beaconGeo = new THREE.SphereGeometry(0.2, 8, 8);
-          const beacon = new THREE.Mesh(beaconGeo, lightMat);
-          beacon.position.set(0, 4.0, 0.3);
-          doorGroup.add(beacon);
+            doorGroup.position.set(doorX, 0, doorZ);
+            this.scene.add(doorGroup);
 
-          const beaconLight = new THREE.PointLight(0x2ecc71, 2.0, 6);
-          beaconLight.position.set(doorX, 4.0, doorZ);
-          this.scene.add(beaconLight);
-
-          doorGroup.position.set(doorX, 0, doorZ);
-          this.scene.add(doorGroup);
-
-          this.safeRoomDoors.push({
-            position: new THREE.Vector3(doorX, 0, doorZ),
-            room: room
-          });
+            this.safeRoomDoors.push({
+              position: new THREE.Vector3(doorX, 0, doorZ),
+              isIntroDoor: (count === 0 && doorCol === colsToCheck[0]),
+              room: room
+            });
+          }
         }
+        count++;
       }
     }
   }
