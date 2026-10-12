@@ -40,3 +40,45 @@ canvas {
   text-align: center;
   min-height: 40px;
 }
+/* --- RUNESCAPE RIGHT-CLICK MENU --- */
+#context-menu {
+  position: absolute;
+  background-color: #2b2b2b;
+  border: 2px solid #5a5a5a;
+  box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.8);
+  width: 180px;
+  z-index: 1000;
+  font-family: monospace;
+}
+
+.hidden {
+  display: none !important;
+}
+
+#context-header {
+  background-color: #3d3d3d;
+  color: #ffcc00;
+  font-weight: bold;
+  padding: 4px 8px;
+  font-size: 12px;
+  border-bottom: 1px solid #5a5a5a;
+}
+
+#context-options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#context-options li {
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #ffffff;
+  cursor: pointer;
+  border-bottom: 1px solid #383838;
+}
+
+#context-options li:hover {
+  background-color: #4a4a4a;
+  color: #00ffcc;
+}
