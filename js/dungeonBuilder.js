@@ -112,47 +112,13 @@ export class DungeonBuilder {
     this.scene.add(stairGroup);
   }
 
-  createStoneTexture() {
-    const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 256;
-    const ctx = canvas.getContext('2d');
-
-    ctx.fillStyle = '#2b2930';
-    ctx.fillRect(0, 0, 256, 256);
-
-    ctx.fillStyle = '#6e6875';
-    const rows = 8, cols = 4;
-    const rh = 256 / rows, cw = 256 / cols;
-
-    for (let r = 0; r < rows; r++) {
-      const offset = (r % 2) * (cw / 2);
-      for (let c = -1; c < cols + 1; c++) {
-        ctx.fillRect(c * cw + offset + 3, r * rh + 3, cw - 6, rh - 6);
-      }
-    }
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(1, 2);
-    return texture;
-  }
-
   render3DWorld() {
     const floorGeo = new THREE.BoxGeometry(this.tileSize, 0.4, this.tileSize);
     const wallGeo = new THREE.BoxGeometry(this.tileSize, 5.0, this.tileSize);
 
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0x443a32, roughness: 0.6 });
-    const safeFloorMat = new THREE.MeshStandardMaterial({ color: 0x244155, roughness: 0.5 });
-
-    const stoneTex = this.createStoneTexture();
-    const wallMat = new THREE.MeshStandardMaterial({ 
-      color: 0x7c7586,
-      roughness: 0.75,
-      metalness: 0.15,
-      bumpMap: stoneTex,
-      bumpScale: 0.35
-    });
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x4c4238, roughness: 0.6 });
+    const safeFloorMat = new THREE.MeshStandardMaterial({ color: 0x2a4d66, roughness: 0.5 });
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x8a8294, roughness: 0.7, metalness: 0.1 });
 
     for (let r = 0; r < this.gridRows; r++) {
       for (let c = 0; c < this.gridCols; c++) {
@@ -176,9 +142,8 @@ export class DungeonBuilder {
       }
     }
 
-    // Intro Safe Room bright lighting
     const spawnRoom = this.rooms[0];
-    const introLight = new THREE.PointLight(0xffeedd, 5.0, 30);
+    const introLight = new THREE.PointLight(0xfff5ee, 6.0, 35);
     introLight.position.set(
       (spawnRoom.x + spawnRoom.w / 2) * this.tileSize,
       3.5,
@@ -186,7 +151,6 @@ export class DungeonBuilder {
     );
     this.scene.add(introLight);
 
-    // Tutorial Chest
     const chestX = (spawnRoom.x + 2) * this.tileSize;
     const chestZ = (spawnRoom.y + 2) * this.tileSize;
     const chestGroup = new THREE.Group();
@@ -248,8 +212,7 @@ export class DungeonBuilder {
   }
 
   addSconce(x, y, z) {
-    const sconceMat = new THREE.MeshBasicMaterial({ color: 0xffaa33 });
-    const flame = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), sconceMat);
+    const flame = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffaa33 }));
     flame.position.set(x, y, z);
     this.scene.add(flame);
 
