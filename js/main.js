@@ -25,9 +25,10 @@ class Game3D {
   constructor() {
     this.container = document.getElementById('game-container');
     
-    // Scene setup with high-visibility background and lighting
+    // Scene setup with dark dungeon atmosphere and fog
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x111118);
+    this.scene.background = new THREE.Color(0x060609);
+    this.scene.fog = new THREE.FogExp2(0x060609, 0.035); // Atmospheric dark fog
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -36,11 +37,12 @@ class Game3D {
     this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
     this.cameraOffset = new THREE.Vector3(0, 30, 22);
 
-    // High ambient and directional light guarantees no black screens
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
+    // Dim ambient light so the dungeon feels dark and foreboding
+    const ambientLight = new THREE.AmbientLight(0x222233, 0.4);
     this.scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    // Subtle overhead directional light
+    const dirLight = new THREE.DirectionalLight(0x444466, 0.3);
     dirLight.position.set(20, 40, 20);
     this.scene.add(dirLight);
 
@@ -57,13 +59,12 @@ class Game3D {
     const spawnX = spawnRoom.x * 4 + (spawnRoom.w * 2);
     const spawnZ = spawnRoom.y * 4 + (spawnRoom.h * 2);
 
-    // Pass dungeon grid to Carl for collision barriers
     this.carl = new Carl3D(this.scene, spawnX, spawnZ, this.mapData.grid);
     this.donut = new Donut3D(this.scene, spawnX - 2, spawnZ);
     this.mordecai = new Mordecai3D(this.scene, spawnX + 3, spawnZ);
 
-    // Character local area lighting (Torch glow around Carl)
-    this.carlLight = new THREE.PointLight(0xff9944, 2.8, 14);
+    // Carl's personal torch light remains warm and bright around him
+    this.carlLight = new THREE.PointLight(0xff8833, 3.2, 16);
     this.carlLight.position.set(spawnX, 2.0, spawnZ);
     this.scene.add(this.carlLight);
 
@@ -80,7 +81,7 @@ class Game3D {
     this.setupInputs();
     this.clock = new THREE.Clock();
 
-    logMessage(`[SYSTEM AI]: Floor 1 initialized with full 3D walls, floors, and safe rooms!`, 'sys-msg');
+    logMessage(`[SYSTEM AI]: Floor 1 darkened. Crawler Carl, watch your step in the shadows!`, 'sys-msg');
 
     this.animate();
   }
