@@ -96,7 +96,7 @@ export class Donut3D {
       this.frontLeftLeg.rotation.x = Math.sin(time) * 0.7;
       this.frontRightLeg.rotation.x = -Math.sin(time) * 0.7;
       this.backLeftLeg.rotation.x = -Math.sin(time) * 0.7;
-      this.backRightLeg.rotation.x = -Math.sin(time) * 0.7;
+      this.backRightLeg.rotation.x = Math.sin(time) * 0.7;
     } else {
       this.frontLeftLeg.rotation.x = 0;
       this.frontRightLeg.rotation.x = 0;
