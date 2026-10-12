@@ -7,33 +7,41 @@ import { CombatEngine } from './combat.js';
 import { AudioManager } from './audioManager.js';
 import { InventoryManager } from './inventory.js';
 
+const logBox = document.getElementById('log-box');
+function logMessage(text, className = '') {
+  const p = document.createElement('p');
+  p.className = className;
+  p.textContent = text;
+  if (logBox) {
+    logBox.appendChild(p);
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+}
+
 class Game3D {
   constructor() {
     this.container = document.getElementById('game-container');
     
-    // 1. Scene & Renderer Setup
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x050508);
-    this.scene.fog = new THREE.FogExp2(0x050508, 0.035);
+    this.scene.fog = new THREE.FogExp2(0x050508, 0.025); // Extended view distance
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
     this.container.appendChild(this.renderer.domElement);
 
-    // 2. Diablo 3-style Isometric Top-Down Camera
     this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-    this.cameraOffset = new THREE.Vector3(0, 22, 16);
+    this.cameraOffset = new THREE.Vector3(0, 24, 18); // Wider angle view
 
-    // 3. Lighting (Torch Ambience & Shadows)
-    const ambientLight = new THREE.AmbientLight(0x222233, 1.2);
+    // Brighter ambient & extended torch range
+    const ambientLight = new THREE.AmbientLight(0x333344, 1.5);
     this.scene.add(ambientLight);
 
-    this.playerLight = new THREE.PointLight(0xffaa55, 2.5, 25);
+    this.playerLight = new THREE.PointLight(0xffaa55, 3.5, 35);
     this.playerLight.castShadow = true;
     this.scene.add(this.playerLight);
 
-    // 4. Game Systems Initialization
     this.audio = new AudioManager();
     this.audio.attachToCamera(this.camera);
 
@@ -52,6 +60,9 @@ class Game3D {
     this.combat = new CombatEngine(this.scene);
 
     this.monsters = [];
+    this.projectiles = [];
+    this.donutCooldown = 0;
+
     this.spawnMonsters();
 
     this.targetPos = this.carl.getPosition().clone();
@@ -60,6 +71,9 @@ class Game3D {
 
     this.setupInputs();
     this.clock = new THREE.Clock();
+
+    logMessage(`[SYSTEM AI]: Floor 1 Labyrinth fully initialized with procedural stone textures and torches.`, 'sys-msg');
+
     this.animate();
   }
 
@@ -78,6 +92,25 @@ class Game3D {
       this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
       this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
       this.raycaster.setFromCamera(this.mouse, this.camera);
+      
+      // Check if clicking a monster
+      const monsterMeshes = this.monsters.map(m => m.mesh);
+      const hitMonsters = this.raycaster.intersectObjects(monsterMeshes);
+      
+      if (hitMonsters.length > 0) {
+        const clickedMesh = hitMonsters[0].object;
+        const targetMonster = this.monsters.find(m => m.mesh === clickedMesh);
+        if (targetMonster && !targetMonster.isDead) {
+          const defeated = targetMonster.takeDamage(20);
+          logMessage(`CARL strikes ${targetMonster.name} with spiked club for 20 damage!`, 'combat-msg');
+          if (defeated) {
+            logMessage(`${targetMonster.name} was obliterated!`, 'sys-msg');
+          }
+          return;
+        }
+      }
+
+      // Otherwise move
       const intersects = this.raycaster.intersectObjects(this.scene.children, true);
       if (intersects.length > 0) {
         this.targetPos.copy(intersects[0].point);
@@ -96,11 +129,15 @@ class Game3D {
     requestAnimationFrame(() => this.animate());
     const delta = this.clock.getDelta();
 
-    // Move Carl & Donut Follower
     this.carl.moveTo(this.targetPos, delta);
     this.donut.follow(this.carl.getPosition(), delta);
 
-    // Update Torch Light & Camera Tracking
+    // Update Monster AI & Chasing
+    for (let m of this.monsters) {
+      m.updateAI(this.carl.getPosition(), delta);
+    }
+
+    // Camera & Light tracking
     const carlPos = this.carl.getPosition();
     this.playerLight.position.set(carlPos.x, carlPos.y + 3, carlPos.z);
     this.camera.position.copy(carlPos).add(this.cameraOffset);
