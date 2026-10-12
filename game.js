@@ -193,8 +193,12 @@ class DungeonScene extends Phaser.Scene {
   }
 
   create() {
-    this.game.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-    this.setupAnimations();
+    // --- FORCEFULLY PREVENT BROWSER DEFAULT RIGHT-CLICK MENU ---
+    this.game.canvas.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    }, false);
 
     this.tileSize = 48;
     this.mapCols = 250;
