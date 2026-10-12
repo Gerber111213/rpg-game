@@ -3,38 +3,105 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dungeon Crawler Carl - Floor 1</title>
+  <title>Dungeon Crawler Carl: Level 1 Labyrinth</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #000;
+      overflow: hidden;
+      font-family: 'Courier New', Courier, monospace;
+    }
+
+    /* --- UI LOG BOX (Top Right) --- */
+    #log-box {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      width: 340px;
+      height: 220px;
+      background: rgba(10, 10, 15, 0.85);
+      border: 2px solid #3d3566;
+      border-radius: 4px;
+      padding: 10px;
+      box-sizing: border-box;
+      overflow-y: auto;
+      pointer-events: none;
+      z-index: 100;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
+    }
+
+    #log-box p {
+      margin: 0 0 6px 0;
+      font-size: 12px;
+      line-height: 1.4;
+      color: #b8b6cc;
+    }
+
+    #log-box p.sys-msg {
+      color: #00e5ff;
+    }
+
+    #log-box p.donut-msg {
+      color: #ff88cc;
+    }
+
+    #log-box p.combat-msg {
+      color: #ff4444;
+    }
+
+    /* --- RIGHT-CLICK CONTEXT MENU --- */
+    #context-menu {
+      position: absolute;
+      background: #15141c;
+      border: 1px solid #4a4470;
+      border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+      z-index: 1000;
+      padding: 4px 0;
+      min-width: 160px;
+    }
+
+    #context-menu.hidden {
+      display: none;
+    }
+
+    #context-options {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    #context-options li {
+      padding: 8px 14px;
+      font-size: 13px;
+      color: #e0def4;
+      cursor: pointer;
+      font-family: 'Courier New', Courier, monospace;
+      transition: background 0.15s ease;
+    }
+
+    #context-options li:hover {
+      background: #2d2a3d;
+      color: #00e5ff;
+    }
+  </style>
+  <!-- Load Phaser 3 from CDN -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
-  <link rel="stylesheet" href="style.css">
 </head>
-<body>
-  <!-- HUD Overlay -->
-  <div id="ui-overlay">
-    <div class="hud-header">SYSTEM AI STATUS</div>
-    <div class="hud-body">
-      <div class="stat-group">
-        <h4>Crawler: Carl</h4>
-        <p>HP: <span id="hp">100</span>/100</p>
-        <p>Footwear: <span class="highlight-danger">NONE (Barefoot)</span></p>
-      </div>
-      <hr>
-      <div class="stat-group">
-        <h4>Companion: Donut</h4>
-        <p>Spell: <span class="highlight-magic">Magic Missile</span></p>
-      </div>
-      <hr>
-      <div id="log-box">
-        <p class="sys-msg">[SYSTEM AI]: Floor 1 labyrinth active. Explore carefully.</p>
-      </div>
-    </div>
+<body oncontextmenu="return false;">
+
+  <!-- Game Prompt / Event Log Box -->
+  <div id="log-box">
+    <p class="sys-msg">[SYSTEM]: Initializing Crawler Interface...</p>
   </div>
 
-  <!-- Context Menu -->
-<div id="context-menu" class="hidden" oncontextmenu="return false;">
-  <ul id="context-options"></ul>
-</div>
+  <!-- Custom Right-Click Menu -->
+  <div id="context-menu" class="hidden">
+    <ul id="context-options"></ul>
+  </div>
 
-  <!-- Single Game Script -->
+  <!-- Main Game Script -->
   <script src="game.js"></script>
 </body>
 </html>
