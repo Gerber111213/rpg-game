@@ -1,35 +1,27 @@
 export class Donut3D {
   constructor(scene, x, z) {
     this.scene = scene;
-    this.group = new THREE.Group();
+    this.name = "Princess Donut";
 
-    // Persian Cat Mesh with Ruby Tiara
-    const bodyGeo = new THREE.SphereGeometry(0.5, 16, 16);
-    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xf0e6d2 });
-    this.body = new THREE.Mesh(bodyGeo, bodyMat);
-    this.body.position.y = 0.5;
-    this.body.castShadow = true;
-    this.group.add(this.body);
+    const textureLoader = new THREE.TextureLoader();
+    this.texture = textureLoader.load('assets/donut_walk.png');
+    this.texture.magFilter = THREE.NearestFilter;
 
-    // Ruby Tiara
-    const tiaraGeo = new THREE.ConeGeometry(0.2, 0.3, 8);
-    const tiaraMat = new THREE.MeshStandardMaterial({ color: 0xcc0033, metalness: 0.8, roughness: 0.2 });
-    const tiara = new THREE.Mesh(tiaraGeo, tiaraMat);
-    tiara.position.set(0, 0.9, 0);
-    this.group.add(tiara);
+    const material = new THREE.SpriteMaterial({ map: this.texture });
+    this.sprite = new THREE.Sprite(material);
+    this.sprite.scale.set(2.0, 2.0, 1);
+    this.sprite.position.set(x, 1.0, z);
 
-    this.group.position.set(x, 0, z);
-    this.scene.add(this.group);
+    this.scene.add(this.sprite);
   }
 
   follow(targetPos, delta) {
-    const dist = this.group.position.distanceTo(targetPos);
+    const dist = this.sprite.position.distanceTo(targetPos);
     if (dist > 3.0) {
-      const dir = new THREE.Vector3().subVectors(targetPos, this.group.position);
+      const dir = new THREE.Vector3().subVectors(targetPos, this.sprite.position);
       dir.y = 0;
       dir.normalize();
-      this.group.position.addScaledVector(dir, 10 * delta);
-      this.group.lookAt(targetPos.x, this.group.position.y, targetPos.z);
+      this.sprite.position.addScaledVector(dir, 11 * delta);
     }
   }
 }
