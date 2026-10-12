@@ -118,7 +118,7 @@ class Donut extends Phaser.Physics.Arcade.Sprite {
   }
 }
 
-// --- OTHER ENTITY CLASSES ---
+// --- ENTITY CLASSES ---
 class Enemy extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y, textureKey, name, hp, damage) {
     super(scene, x, y, textureKey);
@@ -172,20 +172,24 @@ class DungeonScene extends Phaser.Scene {
 
     const g = this.make.graphics({ x: 0, y: 0, add: false });
     
-    // Spooky Dungeon Floor
-    g.fillStyle(0x15141c, 1); g.fillRect(0, 0, 48, 48);
-    g.lineStyle(1, 0x08070a, 1); g.beginPath(); g.moveTo(10, 0); g.lineTo(18, 22); g.lineTo(38, 44); g.strokePath();
-    g.generateTexture('floor', 48, 48); g.clear();
-    
-    // Dungeon Wall
-    g.fillStyle(0x282633, 1); g.fillRect(0, 0, 48, 48);
-    g.lineStyle(2, 0x14131a, 1); g.strokeRect(0, 0, 48, 48);
-    g.generateTexture('wall', 48, 48); g.clear();
-    
-    // Entity Placeholders
+    // Floor Variants
+    g.fillStyle(0x1a1824, 1); g.fillRect(0, 0, 48, 48); g.lineStyle(1, 0x0d0c14, 1); g.strokeRect(2, 2, 44, 44); g.generateTexture('floor_1', 48, 48); g.clear();
+    g.fillStyle(0x171520, 1); g.fillRect(0, 0, 48, 48); g.lineStyle(1, 0x09080e, 1); g.strokeRect(2, 2, 44, 44); g.beginPath(); g.moveTo(8, 8); g.lineTo(20, 24); g.lineTo(36, 40); g.strokePath(); g.generateTexture('floor_2', 48, 48); g.clear();
+    g.fillStyle(0x161c17, 1); g.fillRect(0, 0, 48, 48); g.fillStyle(0x28402d, 0.6); g.fillCircle(14, 14, 6); g.fillCircle(32, 28, 8); g.lineStyle(1, 0x0a120b, 1); g.strokeRect(2, 2, 44, 44); g.generateTexture('floor_3', 48, 48); g.clear();
+    g.fillStyle(0x1c1a29, 1); g.fillRect(0, 0, 48, 48); g.lineStyle(1, 0x3d3566, 0.8); g.strokeCircle(24, 24, 12); g.generateTexture('floor_4', 48, 48); g.clear();
+
+    // Wall Variants
+    g.fillStyle(0x2d2a3d, 1); g.fillRect(0, 0, 48, 48); g.lineStyle(2, 0x14121c, 1); g.strokeRect(0, 0, 48, 48); g.lineStyle(1, 0x1d1b28, 1); g.lineBetween(0, 24, 48, 24); g.generateTexture('wall_1', 48, 48); g.clear();
+    g.fillStyle(0x273029, 1); g.fillRect(0, 0, 48, 48); g.fillStyle(0x3e5e43, 0.7); g.fillRect(4, 4, 16, 20); g.fillRect(24, 28, 18, 14); g.lineStyle(2, 0x101711, 1); g.strokeRect(0, 0, 48, 48); g.generateTexture('wall_2', 48, 48); g.clear();
+    g.fillStyle(0x363342, 1); g.fillRect(0, 0, 48, 48); g.lineStyle(1, 0x16151c, 1); g.beginPath(); g.moveTo(4, 4); g.lineTo(24, 22); g.lineTo(44, 40); g.strokePath(); g.lineStyle(2, 0x181621, 1); g.strokeRect(0, 0, 48, 48); g.generateTexture('wall_3', 48, 48); g.clear();
+
+    // Entity shapes
     g.fillStyle(0x44cc44, 1); g.fillRect(0, 0, 24, 24); g.generateTexture('goblin', 24, 24); g.clear();
     g.fillStyle(0x8b5a2b, 1); g.fillRect(0, 0, 28, 28); g.generateTexture('mordecai', 28, 28); g.clear();
     g.fillStyle(0x00e5ff, 1); g.fillCircle(6, 6, 6); g.generateTexture('missile', 12, 12); g.clear();
+
+    this.floorVariants = ['floor_1', 'floor_1', 'floor_1', 'floor_2', 'floor_3', 'floor_4'];
+    this.wallVariants = ['wall_1', 'wall_1', 'wall_2', 'wall_3'];
   }
 
   create() {
@@ -193,18 +197,29 @@ class DungeonScene extends Phaser.Scene {
     this.setupAnimations();
 
     this.tileSize = 48;
-    this.mapCols = 250; // Massive 250x250 scale dungeon floor
+    this.mapCols = 250;
     this.mapRows = 250;
     
     this.walls = this.physics.add.staticGroup();
     this.enemies = this.physics.add.group();
     this.projectiles = this.physics.add.group();
 
-    // 1. Generate Massive Hallway & Room Dungeon Grid in Memory
-    this.dungeonGrid = Array.from({ length: this.mapRows }, () => Array(this.mapCols).fill(0));
+    // 1. Generate grid and populate ALL static wall physics colliders upfront
+    this.dungeonGrid = Array.from({ length: this.mapRows }, () => Array(this.mapCols).fill(null));
     const rooms = this.generateMassiveRoomsAndCorridors();
 
-    // 2. Spawn Characters in First Room
+    // Instantiate solid physics colliders for all wall tiles across the entire map
+    for (let r = 0; r < this.mapRows; r++) {
+      for (let c = 0; c < this.mapCols; c++) {
+        if (this.dungeonGrid[r][c].type === 0) {
+          const posX = c * this.tileSize + this.tileSize / 2;
+          const posY = r * this.tileSize + this.tileSize / 2;
+          this.walls.create(posX, posY, this.dungeonGrid[r][c].texture).setVisible(false);
+        }
+      }
+    }
+
+    // 2. Spawn Characters
     const spawnRoom = rooms[0];
     const spawnX = (spawnRoom.x + Math.floor(spawnRoom.w / 2)) * this.tileSize;
     const spawnY = (spawnRoom.y + Math.floor(spawnRoom.h / 2)) * this.tileSize;
@@ -213,7 +228,7 @@ class DungeonScene extends Phaser.Scene {
     this.donut = new Donut(this, spawnX - 30, spawnY);
     this.mordecai = new Mordecai(this, spawnX + 40, spawnY);
 
-    // Populate Goblins across rooms
+    // Populate Goblins
     for (let i = 1; i < rooms.length; i++) {
       const room = rooms[i];
       if (Math.random() > 0.3) {
@@ -224,7 +239,12 @@ class DungeonScene extends Phaser.Scene {
       }
     }
 
-    // Set world bounds & camera
+    // Collisions
+    this.physics.add.collider(this.carl, this.walls);
+    this.physics.add.collider(this.donut, this.walls);
+    this.physics.add.collider(this.mordecai, this.walls);
+    this.physics.add.collider(this.enemies, this.walls);
+
     this.cameras.main.setBounds(0, 0, this.mapCols * this.tileSize, this.mapRows * this.tileSize);
     this.cameras.main.startFollow(this.carl, true, 0.1, 0.1);
     this.cameras.main.setZoom(2.2);
@@ -233,14 +253,12 @@ class DungeonScene extends Phaser.Scene {
     this.targetY = this.carl.y;
     this.donutCooldown = 0;
 
-    // Tile management structures for Line of Sight & Rendering
-    this.activeTileSprites = new Map(); // key: "x,y", value: sprite object
+    this.activeTileSprites = new Map();
     this.lastCarlTileX = -999;
     this.lastCarlTileY = -999;
 
-    logMessage(`[SYSTEM AI]: Floor 1 massive labyrinth generated (${this.mapCols}x${this.mapRows} grid, ${rooms.length} rooms). Line of Sight active.`, 'sys-msg');
+    logMessage(`[SYSTEM AI]: Floor 1 physics mesh secured. Walkways clear.`, 'sys-msg');
 
-    // Input Handler
     this.input.on('pointerdown', (pointer) => {
       if (pointer.rightButtonDown() || pointer.button === 2) {
         this.handleRightClick(pointer);
@@ -252,8 +270,14 @@ class DungeonScene extends Phaser.Scene {
     });
   }
 
-  // --- MASSIVE DUNGEON GENERATOR (Rooms & Hallways) ---
   generateMassiveRoomsAndCorridors() {
+    for (let r = 0; r < this.mapRows; r++) {
+      for (let c = 0; c < this.mapCols; c++) {
+        const wallTex = Phaser.Utils.Array.GetRandom(this.wallVariants);
+        this.dungeonGrid[r][c] = { type: 0, texture: wallTex }; // 0 = Wall
+      }
+    }
+
     const rooms = [];
     const minSize = 6;
     const maxSize = 14;
@@ -281,14 +305,13 @@ class DungeonScene extends Phaser.Scene {
       }
 
       if (!overlaps) {
-        // Carve room
         for (let rx = x; rx < x + w; rx++) {
           for (let ry = y; ry < y + h; ry++) {
-            this.dungeonGrid[ry][rx] = 1; // 1 = Floor
+            const floorTex = Phaser.Utils.Array.GetRandom(this.floorVariants);
+            this.dungeonGrid[ry][rx] = { type: 1, texture: floorTex }; // 1 = Floor
           }
         }
 
-        // Connect with hallways to previous room
         if (rooms.length > 0) {
           const prev = rooms[rooms.length - 1];
           const prevX = Math.floor(prev.x + prev.w / 2);
@@ -312,24 +335,27 @@ class DungeonScene extends Phaser.Scene {
 
   carveHallwayH(x1, x2, y) {
     for (let x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) {
-      this.dungeonGrid[y][x] = 1;
-      this.dungeonGrid[y + 1][x] = 1; // 2-tile wide hallway
+      const floorTex1 = Phaser.Utils.Array.GetRandom(this.floorVariants);
+      const floorTex2 = Phaser.Utils.Array.GetRandom(this.floorVariants);
+      this.dungeonGrid[y][x] = { type: 1, texture: floorTex1 };
+      this.dungeonGrid[y + 1][x] = { type: 1, texture: floorTex2 };
     }
   }
 
   carveHallwayV(y1, y2, x) {
     for (let y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) {
-      this.dungeonGrid[y][x] = 1;
-      this.dungeonGrid[y][x + 1] = 1;
+      const floorTex1 = Phaser.Utils.Array.GetRandom(this.floorVariants);
+      const floorTex2 = Phaser.Utils.Array.GetRandom(this.floorVariants);
+      this.dungeonGrid[y][x] = { type: 1, texture: floorTex1 };
+      this.dungeonGrid[y][x + 1] = { type: 1, texture: floorTex2 };
     }
   }
 
-  // --- LINE OF SIGHT & DYNAMIC RENDERING UPDATE ---
+  // --- VISION & VISUAL CULLING (Purely for rendering what Carl can see) ---
   updateVisionAndTiles() {
     const carlTileX = Math.floor(this.carl.x / this.tileSize);
     const carlTileY = Math.floor(this.carl.y / this.tileSize);
 
-    // Only recalculate when Carl moves to a new tile
     if (carlTileX === this.lastCarlTileX && carlTileY === this.lastCarlTileY) return;
     this.lastCarlTileX = carlTileX;
     this.lastCarlTileY = carlTileY;
@@ -337,14 +363,12 @@ class DungeonScene extends Phaser.Scene {
     const sightRange = 6;
     const visibleKeys = new Set();
 
-    // Check tiles within range + boundary buffer
     for (let ty = carlTileY - sightRange - 2; ty <= carlTileY + sightRange + 2; ty++) {
       for (let tx = carlTileX - sightRange - 2; tx <= carlTileX + sightRange + 2; tx++) {
         if (tx < 0 || tx >= this.mapCols || ty < 0 || ty >= this.mapRows) continue;
 
         const dist = Math.hypot(tx - carlTileX, ty - carlTileY);
         if (dist <= sightRange + 0.5) {
-          // Check line of sight (Raycast)
           if (this.hasLineOfSight(carlTileX, carlTileY, tx, ty)) {
             const key = `${tx},${ty}`;
             visibleKeys.add(key);
@@ -352,17 +376,12 @@ class DungeonScene extends Phaser.Scene {
             if (!this.activeTileSprites.has(key)) {
               const posX = tx * this.tileSize + this.tileSize / 2;
               const posY = ty * this.tileSize + this.tileSize / 2;
-              const isFloor = this.dungeonGrid[ty][tx] === 1;
-              const texture = isFloor ? 'floor' : 'wall';
-              
-              const img = this.add.image(posX, posY, texture);
+              const tileData = this.dungeonGrid[ty][tx];
+              const isFloor = tileData.type === 1;
+
+              const img = this.add.image(posX, posY, tileData.texture);
               img.setDepth(isFloor ? 0 : 5);
               this.activeTileSprites.set(key, img);
-
-              // Add static physics collider for walls if not already present
-              if (!isFloor) {
-                this.walls.create(posX, posY, 'wall');
-              }
             } else {
               this.activeTileSprites.get(key).setVisible(true);
             }
@@ -371,7 +390,6 @@ class DungeonScene extends Phaser.Scene {
       }
     }
 
-    // Hide tiles outside current line of sight
     for (let [key, sprite] of this.activeTileSprites.entries()) {
       if (!visibleKeys.has(key)) {
         sprite.setVisible(false);
@@ -379,7 +397,6 @@ class DungeonScene extends Phaser.Scene {
     }
   }
 
-  // Raycast to check if line of sight is blocked by walls
   hasLineOfSight(x0, y0, x1, y1) {
     let dx = Math.abs(x1 - x0);
     let dy = Math.abs(y1 - y0);
@@ -393,9 +410,7 @@ class DungeonScene extends Phaser.Scene {
     while (true) {
       if (cx === x1 && cy === y1) return true;
 
-      // If we hit a wall along the ray before reaching the target (and it's not the start tile)
-      if ((cx !== x0 || cy !== y0) && this.dungeonGrid[cy][cx] === 0) {
-        // Allow seeing the wall tile itself if it's the direct endpoint
+      if ((cx !== x0 || cy !== y0) && this.dungeonGrid[cy][cx].type === 0) {
         if (cx === x1 && cy === y1) return true;
         return false;
       }
@@ -428,10 +443,8 @@ class DungeonScene extends Phaser.Scene {
     this.carl.moveToTarget(this.targetX, this.targetY);
     this.donut.follow(this.carl.x, this.carl.y);
 
-    // Update dynamic field of view & visible tiles based on Carl's position
     this.updateVisionAndTiles();
 
-    // Donut Combat AI
     if (this.donutCooldown <= 0) {
       this.enemies.getChildren().forEach(enemy => {
         const range = Phaser.Math.Distance.Between(this.donut.x, this.donut.y, enemy.x, enemy.y);
@@ -446,7 +459,6 @@ class DungeonScene extends Phaser.Scene {
       this.donutCooldown--;
     }
 
-    // Projectile Hits
     this.physics.add.overlap(this.projectiles, this.enemies, (missile, enemy) => {
       missile.destroy();
       const defeated = enemy.takeDamage(15);
@@ -495,7 +507,7 @@ class DungeonScene extends Phaser.Scene {
 
     contextMenu.style.left = `${pointer.event.clientX}px`;
     contextMenu.style.top = `${pointer.event.clientY}px`;
-    contextMenu.classList.add('hidden');
+    contextMenu.classList.remove('hidden');
   }
 
   addMenuOption(text, action) {
@@ -510,7 +522,6 @@ class DungeonScene extends Phaser.Scene {
   }
 }
 
-// Config
 const config = {
   type: Phaser.AUTO,
   width: window.innerWidth,
