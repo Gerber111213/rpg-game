@@ -12,6 +12,10 @@ body {
   width: 100vw;
   height: 100vh;
   display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
 }
 
 /* --- TOP LEFT HUD --- */
@@ -28,6 +32,7 @@ body {
   z-index: 10;
   box-shadow: 0 4px 16px rgba(0,0,0,0.6);
   min-width: 240px;
+  pointer-events: none;
 }
 
 #hud-overlay .hud-title {
@@ -57,6 +62,43 @@ body {
   transition: width 0.2s ease;
 }
 
+/* --- SPELLBAR & POTION BELT --- */
+#spellbar {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 12px;
+  background: rgba(10, 10, 15, 0.9);
+  border: 1px solid #555;
+  padding: 8px 12px;
+  border-radius: 6px;
+  z-index: 10;
+}
+
+.spell-slot, .belt-slot-hud {
+  width: 44px;
+  height: 44px;
+  background: #1a1a24;
+  border: 1px solid #666;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  position: relative;
+  cursor: pointer;
+  color: #fff;
+}
+.spell-slot span, .belt-slot-hud span {
+  position: absolute;
+  bottom: 2px;
+  right: 4px;
+  font-size: 9px;
+  color: #aaa;
+}
+
 /* --- BOTTOM RIGHT MINIMAP --- */
 #minimap-container {
   position: absolute;
@@ -70,6 +112,7 @@ body {
   z-index: 10;
   overflow: hidden;
   box-shadow: 0 8px 24px rgba(0,0,0,0.7);
+  pointer-events: none;
 }
 #minimap-canvas { width: 100%; height: 100%; display: block; }
 
@@ -115,14 +158,14 @@ body {
 }
 #context-options li:hover { background: #2a2a3b; color: #ffffff; }
 
-/* --- DIABLO II STYLE INVENTORY PANEL (Right Third, 40% Transparent) --- */
+/* --- DIABLO II STYLE INVENTORY PANEL --- */
 #inventory-modal {
   position: absolute;
   top: 0;
   right: 0;
   width: 33.33vw;
   height: 100vh;
-  background: rgba(18, 15, 25, 0.6);
+  background: rgba(18, 15, 25, 0.75);
   backdrop-filter: blur(4px);
   border-left: 2px solid #554433;
   padding: 20px;
@@ -142,7 +185,6 @@ body {
   padding-bottom: 8px;
   margin-bottom: 12px;
 }
-
 .inv-tabs { display: flex; gap: 8px; }
 .inv-tab {
   background: #2a221b;
@@ -155,7 +197,6 @@ body {
 }
 .inv-tab.active { background: #554433; color: #fff; }
 
-/* Character Paperdoll / Equipment Layout */
 .paperdoll-container {
   position: relative;
   height: 220px;
@@ -163,9 +204,6 @@ body {
   border: 1px inset #443322;
   border-radius: 6px;
   margin-bottom: 16px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
 }
 
 .eq-slot {
@@ -182,16 +220,9 @@ body {
   cursor: pointer;
 }
 .eq-slot span {
-  position: absolute;
-  bottom: -14px;
-  font-size: 9px;
-  color: #cca;
-  width: 70px;
-  text-align: center;
-  left: -15px;
+  position: absolute; bottom: -14px; font-size: 9px; color: #cca; width: 70px; text-align: center; left: -15px;
 }
 
-/* Positioning paperdoll slots */
 #eq-head { top: 12px; left: calc(50% - 22px); }
 #eq-weapon { top: 70px; left: calc(50% - 80px); }
 #eq-chest { top: 70px; left: calc(50% - 22px); }
@@ -202,7 +233,6 @@ body {
 #eq-ring1 { top: 175px; left: calc(50% - 50px); }
 #eq-ring2 { top: 175px; left: calc(50% + 10px); }
 
-/* 24x8 Diablo Grid */
 #grid-container {
   display: grid;
   grid-template-columns: repeat(8, 38px);
@@ -210,78 +240,30 @@ body {
   gap: 3px;
   background: rgba(10,8,6,0.8);
   padding: 6px;
-  border: 2px inset #443322;
+  border: 2px inset #444332;
   margin-bottom: 14px;
 }
 
 .grid-slot {
-  width: 38px;
-  height: 38px;
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 38px; height: 38px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center;
 }
-
 .inv-item {
-  width: 34px;
-  height: 34px;
-  background: #3d2d1f;
-  border: 2px solid #8b6914;
-  border-radius: 3px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  cursor: grab;
+  width: 34px; height: 34px; background: #3d2d1f; border: 2px solid #8b6914; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: grab;
 }
 
-/* Item Tooltip Popup */
 #item-tooltip {
-  position: absolute;
-  background: rgba(15, 12, 8, 0.95);
-  border: 2px solid #d4af37;
-  border-radius: 4px;
-  padding: 10px;
-  color: #f3e5ab;
-  font-family: monospace;
-  font-size: 12px;
-  z-index: 1000;
-  pointer-events: none;
-  max-width: 220px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.8);
+  position: absolute; background: rgba(15, 12, 8, 0.95); border: 2px solid #d4af37; border-radius: 4px; padding: 10px; color: #f3e5ab; font-family: monospace; font-size: 12px; z-index: 1000; pointer-events: none; max-width: 220px; box-shadow: 0 4px 16px rgba(0,0,0,0.8);
 }
 #item-tooltip.hidden { display: none; }
 #tooltip-title { color: #ffd700; font-weight: bold; margin-bottom: 4px; }
-#tooltip-desc { color: #fff; margin-bottom: 6px; }
-#tooltip-stats { color: #00ffaa; }
 
-/* --- STATS / SKILL SCREEN (Letter A) --- */
 #stats-modal {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 420px;
-  background: rgba(18, 15, 25, 0.95);
-  border: 2px solid #d4af37;
-  border-radius: 8px;
-  padding: 20px;
-  z-index: 60;
-  color: #f3e5ab;
-  font-family: monospace;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.9);
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 420px; background: rgba(18, 15, 25, 0.95); border: 2px solid #d4af37; border-radius: 8px; padding: 20px; z-index: 60; color: #f3e5ab; font-family: monospace; box-shadow: 0 10px 40px rgba(0,0,0,0.9);
 }
 #stats-modal.hidden { display: none; }
-#stats-modal h2 { color: #ffd700; margin-top: 0; border-bottom: 1px solid #554433; padding-bottom: 6px; }
 .stat-row { display: flex; justify-content: space-between; margin: 8px 0; font-size: 14px; }
 
-/* Announcer & Dialogue */
 #announcement-banner {
-  position: absolute; top: 15%; left: 50%; transform: translateX(-50%);
-  background: rgba(180, 20, 20, 0.9); border: 2px solid #ff3333; color: #fff;
-  padding: 16px 32px; border-radius: 8px; font-family: monospace; font-size: 16px;
-  font-weight: bold; text-align: center; z-index: 200; box-shadow: 0 0 30px rgba(255,0,0,0.8);
+  position: absolute; top: 15%; left: 50%; transform: translateX(-50%); background: rgba(180, 20, 20, 0.9); border: 2px solid #ff3333; color: #fff; padding: 16px 32px; border-radius: 8px; font-family: monospace; font-size: 16px; font-weight: bold; text-align: center; z-index: 200; box-shadow: 0 0 30px rgba(255,0,0,0.8);
 }
 #announcement-banner.hidden { display: none; }
