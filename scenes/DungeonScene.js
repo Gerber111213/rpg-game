@@ -11,8 +11,10 @@ function logMessage(text, className = '') {
   const p = document.createElement('p');
   p.className = className;
   p.textContent = text;
-  logBox.appendChild(p);
-  logBox.scrollTop = logBox.scrollHeight;
+  if (logBox) {
+    logBox.appendChild(p);
+    logBox.scrollTop = logBox.scrollHeight;
+  }
 }
 
 export class DungeonScene extends Phaser.Scene {
@@ -37,7 +39,7 @@ export class DungeonScene extends Phaser.Scene {
     g.fillStyle(0x273029, 1); g.fillRect(0, 0, 48, 48); g.fillStyle(0x3e5e43, 0.7); g.fillRect(4, 4, 16, 20); g.fillRect(24, 28, 18, 14); g.lineStyle(2, 0x101711, 1); g.strokeRect(0, 0, 48, 48); g.generateTexture('wall_2', 48, 48); g.clear();
     g.fillStyle(0x363342, 1); g.fillRect(0, 0, 48, 48); g.lineStyle(1, 0x16151c, 1); g.beginPath(); g.moveTo(4, 4); g.lineTo(24, 22); g.lineTo(44, 40); g.strokePath(); g.lineStyle(2, 0x181621, 1); g.strokeRect(0, 0, 48, 48); g.generateTexture('wall_3', 48, 48); g.clear();
 
-    // Entity shapes
+    // Entity Placeholders
     g.fillStyle(0x44cc44, 1); g.fillRect(0, 0, 24, 24); g.generateTexture('goblin', 24, 24); g.clear();
     g.fillStyle(0x8b5a2b, 1); g.fillRect(0, 0, 28, 28); g.generateTexture('mordecai', 28, 28); g.clear();
     g.fillStyle(0x00e5ff, 1); g.fillCircle(6, 6, 6); g.generateTexture('missile', 12, 12); g.clear();
@@ -60,7 +62,7 @@ export class DungeonScene extends Phaser.Scene {
     this.dungeonGrid = Array.from({ length: this.mapRows }, () => Array(this.mapCols).fill(null));
     const rooms = this.generateMassiveRoomsAndCorridors();
 
-    // Register all solid walls in physics
+    // Register all wall colliders in physics
     for (let r = 0; r < this.mapRows; r++) {
       for (let c = 0; c < this.mapCols; c++) {
         if (this.dungeonGrid[r][c].type === 0) {
@@ -71,33 +73,42 @@ export class DungeonScene extends Phaser.Scene {
       }
     }
 
+    // Spawn Characters at center of starting room
     const spawnRoom = rooms[0];
     const spawnX = (spawnRoom.x + Math.floor(spawnRoom.w / 2)) * this.tileSize;
     const spawnY = (spawnRoom.y + Math.floor(spawnRoom.h / 2)) * this.tileSize;
 
     this.carl = new Carl(this, spawnX, spawnY);
-    this.donut = new Donut(this, spawnX - 30, spawnY);
-    this.mordecai = new Mordecai(this, spawnX + 40, spawnY);
+    this.carl.setDepth(10);
 
-    // Populate Goblins across rooms
+    this.donut = new Donut(this, spawnX - 30, spawnY);
+    this.donut.setDepth(10);
+
+    this.mordecai = new Mordecai(this, spawnX + 40, spawnY);
+    this.mordecai.setDepth(9);
+
+    // Populate Goblins
     for (let i = 1; i < rooms.length; i++) {
       const room = rooms[i];
       if (Math.random() > 0.25) {
         const gx = (room.x + Math.floor(room.w / 2)) * this.tileSize;
         const gy = (room.y + Math.floor(room.h / 2)) * this.tileSize;
-        const goblin = new Enemy(this, gx, gy, 'goblin', `Floor 1 Goblin Scavenger #${i}`, 30, 5);
+        const goblin = new Enemy(this, gx, gy, 'goblin', `Goblin Scavenger #${i}`, 30, 5);
+        goblin.setDepth(9);
         this.enemies.add(goblin);
       }
     }
 
+    // Physics colliders
     this.physics.add.collider(this.carl, this.walls);
     this.physics.add.collider(this.donut, this.walls);
     this.physics.add.collider(this.mordecai, this.walls);
     this.physics.add.collider(this.enemies, this.walls);
 
+    // CAMERA: Zoomed out to 1.0x so you see a wide, expansive portion of the map
     this.cameras.main.setBounds(0, 0, this.mapCols * this.tileSize, this.mapRows * this.tileSize);
     this.cameras.main.startFollow(this.carl, true, 0.1, 0.1);
-    this.cameras.main.setZoom(2.2);
+    this.cameras.main.setZoom(1.0);
 
     this.targetX = this.carl.x;
     this.targetY = this.carl.y;
@@ -108,8 +119,7 @@ export class DungeonScene extends Phaser.Scene {
     this.lastCarlTileX = -999;
     this.lastCarlTileY = -999;
 
-    logMessage(`[SYSTEM ANNOUNCEMENT]: Welcome to Floor 1 Sprawling Labyrinth!`, 'sys-msg');
-    logMessage(`[SYNDICATE AI]: Crawler Carl detected. Barefoot penalty active.`, 'sys-msg');
+    logMessage(`[SYSTEM ANNOUNCEMENT]: Floor 1 Labyrinth initialized. Camera restored to wide overview.`, 'sys-msg');
 
     this.input.on('pointerdown', (pointer) => {
       if (pointer.rightButtonDown() || pointer.button === 2) {
@@ -123,7 +133,6 @@ export class DungeonScene extends Phaser.Scene {
   }
 
   generateMassiveRoomsAndCorridors() {
-    // Fill with walls initially
     for (let r = 0; r < this.mapRows; r++) {
       for (let c = 0; c < this.mapCols; c++) {
         const wallTex = Phaser.Utils.Array.GetRandom(this.wallVariants);
@@ -134,7 +143,7 @@ export class DungeonScene extends Phaser.Scene {
     const rooms = [];
     const minSize = 8;
     const maxSize = 18;
-    const targetRooms = 120; // Sprawling layout across the 250x250 grid
+    const targetRooms = 120;
 
     for (let i = 0; i < targetRooms; i++) {
       const w = Phaser.Math.Between(minSize, maxSize);
@@ -190,7 +199,7 @@ export class DungeonScene extends Phaser.Scene {
     for (let x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) {
       const floorTex1 = Phaser.Utils.Array.GetRandom(this.floorVariants);
       const floorTex2 = Phaser.Utils.Array.GetRandom(this.floorVariants);
-      if (y > 0 && y < this.mapRows) {
+      if (y > 0 && y < this.mapRows - 1) {
         this.dungeonGrid[y][x] = { type: 1, texture: floorTex1 };
         this.dungeonGrid[y + 1][x] = { type: 1, texture: floorTex2 };
       }
@@ -201,14 +210,13 @@ export class DungeonScene extends Phaser.Scene {
     for (let y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) {
       const floorTex1 = Phaser.Utils.Array.GetRandom(this.floorVariants);
       const floorTex2 = Phaser.Utils.Array.GetRandom(this.floorVariants);
-      if (x > 0 && x < this.mapCols) {
+      if (x > 0 && x < this.mapCols - 1) {
         this.dungeonGrid[y][x] = { type: 1, texture: floorTex1 };
         this.dungeonGrid[y][x + 1] = { type: 1, texture: floorTex2 };
       }
     }
   }
 
-  // --- VISION & LINE OF SIGHT (18 Tiles Range, Blocked by Walls) ---
   updateVisionAndTiles() {
     const carlTileX = Math.floor(this.carl.x / this.tileSize);
     const carlTileY = Math.floor(this.carl.y / this.tileSize);
@@ -217,7 +225,7 @@ export class DungeonScene extends Phaser.Scene {
     this.lastCarlTileX = carlTileX;
     this.lastCarlTileY = carlTileY;
 
-    const sightRange = 18; // Expanded to 18 tiles view distance
+    const sightRange = 18;
     const visibleKeys = new Set();
 
     for (let ty = carlTileY - sightRange - 2; ty <= carlTileY + sightRange + 2; ty++) {
@@ -267,7 +275,6 @@ export class DungeonScene extends Phaser.Scene {
     while (true) {
       if (cx === x1 && cy === y1) return true;
 
-      // Walls block line of sight
       if ((cx !== x0 || cy !== y0) && this.dungeonGrid[cy][cx].type === 0) {
         if (cx === x1 && cy === y1) return true;
         return false;
@@ -319,6 +326,7 @@ export class DungeonScene extends Phaser.Scene {
         const range = Phaser.Math.Distance.Between(this.donut.x, this.donut.y, enemy.x, enemy.y);
         if (range <= 280) {
           const missile = this.projectiles.create(this.donut.x, this.donut.y, 'missile');
+          missile.setDepth(11);
           this.physics.moveToObject(missile, enemy, 350);
           this.donutCooldown = 120;
           logMessage(`DONUT: "TAKE THIS, YOU WRETCHED HOOLIGAN!"`, 'donut-msg');
@@ -339,6 +347,7 @@ export class DungeonScene extends Phaser.Scene {
   }
 
   handleRightClick(pointer) {
+    if (!contextOptions) return;
     contextOptions.innerHTML = '';
     const worldX = pointer.worldX; 
     const worldY = pointer.worldY;
@@ -374,19 +383,21 @@ export class DungeonScene extends Phaser.Scene {
       this.targetY = worldY;
     });
 
-    contextMenu.style.left = `${pointer.event.clientX}px`;
-    contextMenu.style.top = `${pointer.event.clientY}px`;
-    contextMenu.classList.remove('hidden');
+    if (contextMenu) {
+      contextMenu.style.left = `${pointer.event.clientX}px`;
+      contextMenu.style.top = `${pointer.event.clientY}px`;
+      contextMenu.classList.remove('hidden');
+    }
   }
 
   addMenuOption(text, action) {
     const li = document.createElement('li');
     li.textContent = text;
     li.addEventListener('click', () => { action(); this.hideContextMenu(); });
-    contextOptions.appendChild(li);
+    if (contextOptions) contextOptions.appendChild(li);
   }
 
   hideContextMenu() {
-    contextMenu.classList.add('hidden');
+    if (contextMenu) contextMenu.classList.add('hidden');
   }
 }
