@@ -98,23 +98,35 @@ class DungeonScene extends Phaser.Scene {
   preload() {
     const g = this.make.graphics({ x: 0, y: 0, add: false });
 
-    // Floor
-    g.fillStyle(0x121218, 1);
+    // 1. Spooky Dungeon Rock Floor Texture
+    g.fillStyle(0x15141c, 1); // Dark stone base
     g.fillRect(0, 0, 48, 48);
-    g.lineStyle(1, 0x1e1e2a, 1);
-    g.strokeRect(0, 0, 48, 48);
+    // Rocky variation patches & shadows
+    g.fillStyle(0x0e0d12, 1);
+    g.fillRect(2, 2, 20, 20);
+    g.fillRect(26, 26, 20, 20);
+    g.fillStyle(0x1c1a26, 1);
+    g.fillRect(24, 4, 20, 18);
+    g.fillRect(4, 26, 18, 18);
+    // Crevice/Crack details
+    g.lineStyle(1, 0x08070a, 1);
+    g.beginPath();
+    g.moveTo(10, 0); g.lineTo(18, 22); g.lineTo(38, 44);
+    g.strokePath();
     g.generateTexture('floor', 48, 48);
     g.clear();
 
-    // Wall
-    g.fillStyle(0x2d2b38, 1);
+    // 2. Rugged Dungeon Wall Texture
+    g.fillStyle(0x282633, 1);
     g.fillRect(0, 0, 48, 48);
-    g.lineStyle(1, 0x181720, 1);
+    g.lineStyle(2, 0x14131a, 1);
     g.strokeRect(0, 0, 48, 48);
+    g.fillStyle(0x1a1921, 1);
+    g.fillRect(6, 6, 36, 36);
     g.generateTexture('wall', 48, 48);
     g.clear();
 
-    // Carl
+    // 3. Carl
     g.fillStyle(0xe0ac69, 1);
     g.fillCircle(16, 16, 10);
     g.fillStyle(0xff66b2, 1);
@@ -122,7 +134,7 @@ class DungeonScene extends Phaser.Scene {
     g.generateTexture('carl', 32, 32);
     g.clear();
 
-    // Donut
+    // 4. Donut
     g.fillStyle(0xffffff, 1);
     g.fillCircle(12, 12, 8);
     g.fillStyle(0xff88cc, 1);
@@ -130,19 +142,19 @@ class DungeonScene extends Phaser.Scene {
     g.generateTexture('donut', 24, 24);
     g.clear();
 
-    // Goblin
+    // 5. Goblin
     g.fillStyle(0x44cc44, 1);
     g.fillRect(0, 0, 24, 24);
     g.generateTexture('goblin', 24, 24);
     g.clear();
 
-    // Mordecai
+    // 6. Mordecai
     g.fillStyle(0x8b5a2b, 1);
     g.fillRect(0, 0, 28, 28);
     g.generateTexture('mordecai', 28, 28);
     g.clear();
 
-    // Missile
+    // 7. Missile
     g.fillStyle(0x00e5ff, 1);
     g.fillCircle(6, 6, 6);
     g.generateTexture('missile', 12, 12);
@@ -186,9 +198,10 @@ class DungeonScene extends Phaser.Scene {
     this.physics.add.collider(this.mordecai, this.walls);
     this.physics.add.collider(this.enemies, this.walls);
 
-    // Camera Lock (Map scrolls around Carl)
+    // Camera Settings: Locked on Carl AND Zoomed In for a claustrophobic dungeon feel
     this.cameras.main.setBounds(0, 0, this.mapCols * this.tileSize, this.mapRows * this.tileSize);
     this.cameras.main.startFollow(this.carl, true, 0.1, 0.1);
+    this.cameras.main.setZoom(2.2); // Zooms in so you see a tight 6-tile radius around Carl
 
     this.targetX = this.carl.x;
     this.targetY = this.carl.y;
@@ -269,7 +282,7 @@ class DungeonScene extends Phaser.Scene {
     contextMenu.classList.remove('hidden');
   }
 
-    addMenuOption(text, action) {
+  addMenuOption(text, action) {
     const li = document.createElement('li');
     li.textContent = text;
     li.addEventListener('click', () => { action(); this.hideContextMenu(); });
