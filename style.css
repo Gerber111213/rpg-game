@@ -13,12 +13,9 @@ body, html {
   color: #fff;
 }
 
-/* Fullscreen Canvas */
-#gameCanvas {
+/* Canvas automatically fills screen via Phaser scale manager */
+canvas {
   display: block;
-  width: 100vw;
-  height: 100vh;
-  background-color: #0a0a0d;
 }
 
 /* Floating RS UI Overlay */
@@ -60,20 +57,9 @@ body, html {
   margin: 2px 0;
 }
 
-.highlight-danger {
-  color: #ff5555;
-  font-weight: bold;
-}
-
-.highlight-pink {
-  color: #ff88cc;
-  font-weight: bold;
-}
-
-.highlight-magic {
-  color: #00e5ff;
-  font-weight: bold;
-}
+.highlight-danger { color: #ff5555; font-weight: bold; }
+.highlight-pink { color: #ff88cc; font-weight: bold; }
+.highlight-magic { color: #00e5ff; font-weight: bold; }
 
 hr {
   border: 0;
@@ -105,9 +91,7 @@ hr {
   z-index: 1000;
 }
 
-.hidden {
-  display: none !important;
-}
+.hidden { display: none !important; }
 
 #context-header {
   background-color: #2e2a24;
@@ -118,9 +102,7 @@ hr {
   border-bottom: 1px solid #8b7355;
 }
 
-#context-options {
-  list-style: none;
-}
+#context-options { list-style: none; }
 
 #context-options li {
   padding: 7px 10px;
