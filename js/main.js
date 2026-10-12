@@ -38,10 +38,10 @@ class Game3D {
     this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
     this.cameraOffset = new THREE.Vector3(0, 30, 22);
 
-    const ambientLight = new THREE.AmbientLight(0x444455, 0.6);
+    const ambientLight = new THREE.AmbientLight(0x555566, 0.7);
     this.scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0x8888aa, 0.4);
+    const dirLight = new THREE.DirectionalLight(0x9999bb, 0.5);
     dirLight.position.set(20, 40, 20);
     this.scene.add(dirLight);
 
@@ -56,7 +56,7 @@ class Game3D {
     this.setupInputs();
     this.clock = new THREE.Clock();
 
-    logMessage(`[SYSTEM AI]: Floor 1 initialized. Press 'R' to toggle Walk/Run, 'I' for Diablo Inventory, 'A' for Stats!`, 'sys-msg');
+    logMessage(`[SYSTEM AI]: Floor 1 initialized. Right-click objects for context menu options.`, 'sys-msg');
 
     this.animate();
   }
@@ -102,7 +102,15 @@ class Game3D {
     `;
     document.body.appendChild(hud);
 
-    // Stats Modal (Letter A)
+    // Spellbar & Potion Belt UI
+    const spellbar = document.createElement('div');
+    spellbar.id = 'spellbar';
+    spellbar.innerHTML = `
+      <div class="spell-slot" title="Magic Missile">✨<span>1</span></div>
+      <div class="belt-slot-hud" title="Health Potion (Press Q)" onclick="window.gameInstance.usePotion(window.gameInstance.inventory.belt[0])">🧪<span>Q</span></div>
+    `;
+    document.body.appendChild(spellbar);
+
     const statsModal = document.createElement('div');
     statsModal.id = 'stats-modal';
     statsModal.className = 'hidden';
@@ -110,10 +118,10 @@ class Game3D {
       <h2>CHARACTER STATS & SKILLS</h2>
       <div class="stat-row"><span>Name:</span><span>Bradley "Carl" Hamblin</span></div>
       <div class="stat-row"><span>Class:</span><span>Primary Care Paramedic / Crawler</span></div>
-      <div class="stat-row"><span>Strength:</span><span id="stat-str">15</span></div>
-      <div class="stat-row"><span>Dexterity:</span><span id="stat-dex">12</span></div>
-      <div class="stat-row"><span>Armor Defense:</span><span id="stat-armor">17</span></div>
-      <div class="stat-row"><span>Melee Damage:</span><span id="stat-dmg">25</span></div>
+      <div class="stat-row"><span>Strength:</span><span>15</span></div>
+      <div class="stat-row"><span>Dexterity:</span><span>12</span></div>
+      <div class="stat-row"><span>Armor Defense:</span><span>17</span></div>
+      <div class="stat-row"><span>Melee Damage:</span><span>25</span></div>
       <div style="text-align:center; margin-top:16px;"><button onclick="document.getElementById('stats-modal').classList.add('hidden')" style="background:#554433; color:#ffd700; border:1px solid #d4af37; padding:6px 16px; cursor:pointer;">Close</button></div>
     `;
     document.body.appendChild(statsModal);
@@ -203,7 +211,8 @@ class Game3D {
             logMessage(`CARL strikes ${targetMonster.name} for 25 damage!`, 'combat-msg');
             if (defeated) {
               this.combat.handleCorpseCollapse(targetMonster);
-              logMessage(`${targetMonster.name} obliterated! Right-click to loot.`, 'sys-msg');
+              this.spawnBloodEffect(targetMonster.group.position);
+              logMessage(`${targetMonster.name} obliterated! Right-click corpse to loot.`, 'sys-msg');
             }
           }
         }
@@ -257,7 +266,66 @@ class Game3D {
       if (e.key === 'a' || e.key === 'A') {
         document.getElementById('stats-modal').classList.toggle('hidden');
       }
+      if (e.key === '1') {
+        this.castSpell('magic_missile');
+      }
+      if (e.key === 'q' || e.key === 'Q') {
+        const potion = this.inventory.belt[0];
+        if (potion) this.usePotion(potion);
+      }
     });
+  }
+
+  spawnBloodEffect(pos) {
+    const bloodGeo = new THREE.BufferGeometry();
+    const count = 35;
+    const positions = new Float32Array(count * 3);
+    for (let i = 0; i < count * 3; i += 3) {
+      positions[i] = pos.x + (Math.random() - 0.5) * 1.5;
+      positions[i+1] = 0.1;
+      positions[i+2] = pos.z + (Math.random() - 0.5) * 1.5;
+    }
+    bloodGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const bloodMat = new THREE.PointsMaterial({ color: 0xcc0000, size: 0.25 });
+    const bloodSplatter = new THREE.Points(bloodGeo, bloodMat);
+    this.scene.add(bloodSplatter);
+  }
+
+  castSpell(type) {
+    if (type === 'magic_missile') {
+      const liveMonsters = this.monsters.filter(m => !m.isDead);
+      if (liveMonsters.length > 0) {
+        const nearest = liveMonsters.reduce((prev, curr) => 
+          prev.group.position.distanceTo(this.carl.getPosition()) < curr.group.position.distanceTo(this.carl.getPosition()) ? prev : curr
+        );
+        if (nearest.group.position.distanceTo(this.carl.getPosition()) < 18.0) {
+          this.audio.playSpell();
+          const defeated = nearest.takeDamage(40);
+          logMessage(`CARL casts MAGIC MISSILE for 40 arcane damage!`, 'combat-msg');
+          if (defeated) {
+            this.combat.handleCorpseCollapse(nearest);
+            this.spawnBloodEffect(nearest.group.position);
+          }
+        }
+      }
+    }
+  }
+
+  usePotion(potion) {
+    if (!potion) {
+      logMessage(`No health potion in belt slot 1!`, 'sys-msg');
+      return;
+    }
+    if (this.carl.hp < this.carl.maxHp) {
+      this.carl.hp = Math.min(this.carl.maxHp, this.carl.hp + potion.heal);
+      this.audio.playPotion();
+      logMessage(`[ITEM]: Used Health Potion! Restored 50 HP.`, 'sys-msg');
+      this.updateHUD();
+      this.inventory.belt[0] = null;
+      this.inventory.updateUI();
+    } else {
+      logMessage(`HP is already full!`, 'sys-msg');
+    }
   }
 
   showMordecaiDialogue() {
