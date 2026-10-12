@@ -10,73 +10,155 @@ function logMessage(text, className = '') {
   logBox.scrollTop = logBox.scrollHeight;
 }
 
+// --- CHARACTER CLASSES ---
+class Carl extends Phaser.Physics.Arcade.Sprite {
+  constructor(scene, x, y) {
+    super(scene, x, y, 'carl');
+    scene.add.existing(this);
+    scene.physics.add.existing(this);
+    this.setCollideWorldBounds(true);
+    this.hp = 100;
+    this.speed = 180;
+  }
+  moveToTarget(targetX, targetY) {
+    const dist = Phaser.Math.Distance.Between(this.x, this.y, targetX, targetY);
+    if (dist > 5) {
+      this.scene.physics.moveTo(this, targetX, targetY, this.speed);
+    } else {
+      this.body.setVelocity(0, 0);
+    }
+  }
+}
+
+class Donut extends Phaser.Physics.Arcade.Sprite {
+  constructor(scene, x, y) {
+    super(scene, x, y, 'donut');
+    scene.add.existing(this);
+    scene.physics.add.existing(this);
+    this.setCollideWorldBounds(true);
+    this.speed = 170;
+  }
+  follow(targetX, targetY) {
+    const dist = Phaser.Math.Distance.Between(this.x, this.y, targetX, targetY);
+    if (dist > 50) {
+      this.scene.physics.moveTo(this, targetX, targetY, this.speed);
+    } else {
+      this.body.setVelocity(0, 0);
+    }
+  }
+}
+
+class Enemy extends Phaser.Physics.Arcade.Sprite {
+  constructor(scene, x, y, textureKey, name, hp, damage) {
+    super(scene, x, y, textureKey);
+    scene.add.existing(this);
+    scene.physics.add.existing(this);
+    this.name = name;
+    this.hp = hp;
+    this.damage = damage;
+    this.setCollideWorldBounds(true);
+  }
+  takeDamage(amount) {
+    this.hp -= amount;
+    if (this.hp <= 0) {
+      this.destroy();
+      return true;
+    }
+    return false;
+  }
+}
+
+class Mordecai extends Phaser.Physics.Arcade.Sprite {
+  constructor(scene, x, y) {
+    super(scene, x, y, 'mordecai');
+    scene.add.existing(this);
+    scene.physics.add.existing(this);
+    this.setImmovable(true);
+    this.name = "Mordecai";
+    this.dialogueIndex = 0;
+    this.quotes = [
+      "Listen to me, Carl. Do NOT touch anything glowing without identifying it first.",
+      "The Syndicate AI loves drama. Put on a good show or floor two will kill you both.",
+      "Donut, please stop drinking the health potions. Those are for combat emergencies."
+    ];
+  }
+  getAdvice() {
+    const advice = this.quotes[this.dialogueIndex % this.quotes.length];
+    this.dialogueIndex++;
+    return advice;
+  }
+}
+
+// --- MAIN GAME SCENE ---
 class DungeonScene extends Phaser.Scene {
   constructor() {
     super({ key: 'DungeonScene' });
   }
 
   preload() {
-    // Generate programmatic textures for entities so no external images are needed
-    const graphics = this.make.graphics({ x: 0, y: 0, add: false });
+    const g = this.make.graphics({ x: 0, y: 0, add: false });
 
-    // 1. Floor Tile (48x48)
-    graphics.fillStyle(0x121218, 1);
-    graphics.fillRect(0, 0, 48, 48);
-    graphics.lineStyle(1, 0x1e1e2a, 1);
-    graphics.strokeRect(0, 0, 48, 48);
-    graphics.generateTexture('floor', 48, 48);
-    graphics.clear();
+    // Floor
+    g.fillStyle(0x121218, 1);
+    g.fillRect(0, 0, 48, 48);
+    g.lineStyle(1, 0x1e1e2a, 1);
+    g.strokeRect(0, 0, 48, 48);
+    g.generateTexture('floor', 48, 48);
+    g.clear();
 
-    // 2. Wall Tile (48x48)
-    graphics.fillStyle(0x2d2b38, 1);
-    graphics.fillRect(0, 0, 48, 48);
-    graphics.lineStyle(1, 0x181720, 1);
-    graphics.strokeRect(0, 0, 48, 48);
-    graphics.generateTexture('wall', 48, 48);
-    graphics.clear();
+    // Wall
+    g.fillStyle(0x2d2b38, 1);
+    g.fillRect(0, 0, 48, 48);
+    g.lineStyle(1, 0x181720, 1);
+    g.strokeRect(0, 0, 48, 48);
+    g.generateTexture('wall', 48, 48);
+    g.clear();
 
-    // 3. Carl Texture
-    graphics.fillStyle(0xe0ac69, 1); // Skin
-    graphics.fillCircle(16, 16, 10);
-    graphics.fillStyle(0xff66b2, 1); // Heart Boxers
-    graphics.fillRect(8, 20, 16, 8);
-    graphics.fillStyle(0x333333, 1); // Tactical Vest
-    graphics.fillRect(9, 10, 14, 10);
-    graphics.generateTexture('carl', 32, 32);
-    graphics.clear();
+    // Carl
+    g.fillStyle(0xe0ac69, 1);
+    g.fillCircle(16, 16, 10);
+    g.fillStyle(0xff66b2, 1);
+    g.fillRect(8, 20, 16, 8);
+    g.generateTexture('carl', 32, 32);
+    g.clear();
 
-    // 4. Donut Texture
-    graphics.fillStyle(0xffffff, 1); // Fluffy cat body
-    graphics.fillCircle(12, 12, 8);
-    graphics.fillStyle(0xff88cc, 1); // Crown
-    graphics.fillRect(7, 2, 10, 4);
-    graphics.generateTexture('donut', 24, 24);
-    graphics.clear();
+    // Donut
+    g.fillStyle(0xffffff, 1);
+    g.fillCircle(12, 12, 8);
+    g.fillStyle(0xff88cc, 1);
+    g.fillRect(7, 2, 10, 4);
+    g.generateTexture('donut', 24, 24);
+    g.clear();
 
-    // 5. Enemy Texture (Goblin)
-    graphics.fillStyle(0x44cc44, 1);
-    graphics.fillRect(0, 0, 24, 24);
-    graphics.generateTexture('goblin', 24, 24);
-    graphics.clear();
+    // Goblin
+    g.fillStyle(0x44cc44, 1);
+    g.fillRect(0, 0, 24, 24);
+    g.generateTexture('goblin', 24, 24);
+    g.clear();
 
-    // 6. Magic Missile
-    graphics.fillStyle(0x00e5ff, 1);
-    graphics.fillCircle(6, 6, 6);
-    graphics.generateTexture('missile', 12, 12);
-    graphics.clear();
+    // Mordecai
+    g.fillStyle(0x8b5a2b, 1);
+    g.fillRect(0, 0, 28, 28);
+    g.generateTexture('mordecai', 28, 28);
+    g.clear();
+
+    // Missile
+    g.fillStyle(0x00e5ff, 1);
+    g.fillCircle(6, 6, 6);
+    g.generateTexture('missile', 12, 12);
+    g.clear();
   }
 
   create() {
     this.tileSize = 48;
-    this.mapCols = 40;
-    this.mapRows = 40;
+    this.mapCols = 50;
+    this.mapRows = 50;
 
-    // Create Arcade Physics Groups
     this.walls = this.physics.add.staticGroup();
     this.enemies = this.physics.add.group();
     this.projectiles = this.physics.add.group();
 
-    // Build Labyrinth Grid
+    // Build Labyrinth
     for (let r = 0; r < this.mapRows; r++) {
       for (let c = 0; c < this.mapCols; c++) {
         const x = c * this.tileSize + this.tileSize / 2;
@@ -90,46 +172,29 @@ class DungeonScene extends Phaser.Scene {
       }
     }
 
-    // Spawn Carl (Player) with Physics
-    this.carl = this.physics.add.sprite(this.tileSize * 2.5, this.tileSize * 2.5, 'carl');
-    this.carl.setCollideWorldBounds(true);
-    this.targetX = this.carl.x;
-    this.targetY = this.carl.y;
-    this.carlSpeed = 180;
+    // Spawn Characters
+    this.carl = new Carl(this, this.tileSize * 2.5, this.tileSize * 2.5);
+    this.donut = new Donut(this, this.tileSize * 2, this.tileSize * 2.5);
+    this.mordecai = new Mordecai(this, this.tileSize * 4, this.tileSize * 2.5);
 
-    // Spawn Donut (AI Companion)
-    this.donut = this.physics.add.sprite(this.carl.x - 30, this.carl.y, 'donut');
-    this.donutCooldown = 0;
+    const goblin = new Enemy(this, this.tileSize * 8, this.tileSize * 4, 'goblin', 'Goblin Scavenger', 30, 5);
+    this.enemies.add(goblin);
 
-    // Spawn Enemies
-    const mob1 = this.enemies.create(this.tileSize * 6.5, this.tileSize * 2.5, 'goblin');
-    mob1.name = "Goblin Scavenger";
-    mob1.hp = 30;
-
-    const mob2 = this.enemies.create(this.tileSize * 10.5, this.tileSize * 5.5, 'goblin');
-    mob2.name = "Rage Shroom";
-    mob2.hp = 45;
-
-    // Phaser Physics Collisions
+    // Collisions
     this.physics.add.collider(this.carl, this.walls);
     this.physics.add.collider(this.donut, this.walls);
+    this.physics.add.collider(this.mordecai, this.walls);
+    this.physics.add.collider(this.enemies, this.walls);
 
-    // Overlap: Magic Missiles striking Enemies
-    this.physics.add.overlap(this.projectiles, this.enemies, (missile, enemy) => {
-      missile.destroy();
-      enemy.hp -= 15;
-      logMessage(`[Magic Missile] struck ${enemy.name} for 15 damage!`, 'combat-msg');
-      if (enemy.hp <= 0) {
-        logMessage(`${enemy.name} was obliterated!`, 'sys-msg');
-        enemy.destroy();
-      }
-    });
-
-    // Camera Tracking
+    // Camera Lock (Map scrolls around Carl)
     this.cameras.main.setBounds(0, 0, this.mapCols * this.tileSize, this.mapRows * this.tileSize);
-    this.cameras.main.startFollow(this.carl, true, 0.08, 0.08);
+    this.cameras.main.startFollow(this.carl, true, 0.1, 0.1);
 
-    // Mouse Controls (Point-and-click + Context Menu)
+    this.targetX = this.carl.x;
+    this.targetY = this.carl.y;
+    this.donutCooldown = 0;
+
+    // Inputs
     this.input.on('pointerdown', (pointer) => {
       if (pointer.rightButtonDown()) {
         this.handleRightClick(pointer);
@@ -140,42 +205,37 @@ class DungeonScene extends Phaser.Scene {
       }
     });
 
-    // Disable standard browser right-click menu
     this.game.canvas.oncontextmenu = (e) => e.preventDefault();
   }
 
-  update(time, delta) {
-    // 1. Player Movement toward Click Target
-    const dist = Phaser.Math.Distance.Between(this.carl.x, this.carl.y, this.targetX, this.targetY);
-    if (dist > 10) {
-      this.physics.moveTo(this.carl, this.targetX, this.targetY, this.carlSpeed);
-    } else {
-      this.carl.body.setVelocity(0, 0);
-    }
+  update() {
+    this.carl.moveToTarget(this.targetX, this.targetY);
+    this.donut.follow(this.carl.x, this.carl.y);
 
-    // 2. Donut AI Movement (Follow Carl)
-    const donutDist = Phaser.Math.Distance.Between(this.donut.x, this.donut.y, this.carl.x, this.carl.y);
-    if (donutDist > 60) {
-      this.physics.moveTo(this.donut, this.carl.x, this.carl.y, 140);
-    } else {
-      this.donut.body.setVelocity(0, 0);
-    }
-
-    // 3. Donut AI Combat (Auto-cast Magic Missile)
+    // Donut combat AI
     if (this.donutCooldown <= 0) {
       this.enemies.getChildren().forEach(enemy => {
         const range = Phaser.Math.Distance.Between(this.donut.x, this.donut.y, enemy.x, enemy.y);
-        if (range <= 200) {
+        if (range <= 220) {
           const missile = this.projectiles.create(this.donut.x, this.donut.y, 'missile');
           this.physics.moveToObject(missile, enemy, 350);
-          this.donutCooldown = 120; // Cooldown ticks
-          logMessage(`DONUT: "DIE, YOU DISGUSTING CREATURE!"`, 'donut-msg');
-          logMessage(`Donut cast [Magic Missile]!`, 'combat-msg');
+          this.donutCooldown = 120;
+          logMessage(`DONUT: "TAKE THIS, YOU BRUTE!"`, 'donut-msg');
         }
       });
     } else {
       this.donutCooldown--;
     }
+
+    // Projectile overlap
+    this.physics.add.overlap(this.projectiles, this.enemies, (missile, enemy) => {
+      missile.destroy();
+      const defeated = enemy.takeDamage(15);
+      logMessage(`[Magic Missile] hit ${enemy.name} for 15 damage!`, 'combat-msg');
+      if (defeated) {
+        logMessage(`${enemy.name} was obliterated!`, 'sys-msg');
+      }
+    });
   }
 
   handleRightClick(pointer) {
@@ -183,23 +243,23 @@ class DungeonScene extends Phaser.Scene {
     const worldX = pointer.worldX;
     const worldY = pointer.worldY;
 
-    // Check if an enemy was right-clicked
-    const clickedEnemy = this.enemies.getChildren().find(enemy => {
-      return Phaser.Geom.Rectangle.Contains(enemy.getBounds(), worldX, worldY);
-    });
+    const mordecaiBounds = new Phaser.Geom.Rectangle(this.mordecai.x - 14, this.mordecai.y - 14, 28, 28);
+    if (mordecaiBounds.contains(worldX, worldY)) {
+      this.addMenuOption("Talk to Mordecai", () => {
+        logMessage(`MORDECAI: "${this.mordecai.getAdvice()}"`, 'sys-msg');
+      });
+    }
 
+    const clickedEnemy = this.enemies.getChildren().find(e => e.getBounds().contains(worldX, worldY));
     if (clickedEnemy) {
       this.addMenuOption(`Attack ${clickedEnemy.name}`, () => {
         this.targetX = clickedEnemy.x;
         this.targetY = clickedEnemy.y;
         logMessage(`Carl advances on ${clickedEnemy.name}!`, 'combat-msg');
       });
-      this.addMenuOption(`Examine ${clickedEnemy.name}`, () => {
-        logMessage(`[AI]: ${clickedEnemy.name} (HP: ${clickedEnemy.hp}). Unimposing.`, 'sys-msg');
-      });
     }
 
-    this.addMenuOption('Walk Here', () => {
+    this.addMenuOption("Walk Here", () => {
       this.targetX = worldX;
       this.targetY = worldY;
     });
@@ -209,7 +269,7 @@ class DungeonScene extends Phaser.Scene {
     contextMenu.classList.remove('hidden');
   }
 
-  addMenuOption(text, action) {
+    addMenuOption(text, action) {
     const li = document.createElement('li');
     li.textContent = text;
     li.addEventListener('click', () => { action(); this.hideContextMenu(); });
@@ -221,7 +281,7 @@ class DungeonScene extends Phaser.Scene {
   }
 }
 
-// Phaser 3 Game Instance Config
+// Game Configuration
 const config = {
   type: Phaser.AUTO,
   width: window.innerWidth,
@@ -229,10 +289,7 @@ const config = {
   backgroundColor: '#08080a',
   physics: {
     default: 'arcade',
-    arcade: {
-      gravity: { y: 0 },
-      debug: false
-    }
+    arcade: { gravity: { y: 0 }, debug: false }
   },
   scene: DungeonScene,
   scale: {
