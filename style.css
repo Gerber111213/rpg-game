@@ -13,12 +13,10 @@ body, html {
   color: #fff;
 }
 
-/* Canvas automatically fills screen via Phaser scale manager */
 canvas {
   display: block;
 }
 
-/* Floating RS UI Overlay */
 #ui-overlay {
   position: absolute;
   top: 15px;
@@ -81,7 +79,6 @@ hr {
 .donut-msg { color: #ff88cc; }
 .combat-msg { color: #00ffaa; }
 
-/* Right-Click Context Menu */
 #context-menu {
   position: absolute;
   background-color: #1e1e24;
