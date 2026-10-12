@@ -69,13 +69,14 @@ class Game3D {
 
     this.targetPos = this.carl.getPosition().clone();
     this.isMouseDown = false;
+    this.inSafeRoom = true; // Started in Safe Room 0
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
 
     this.setupInputs();
     this.clock = new THREE.Clock();
 
-    logMessage(`[SYSTEM AI]: Floor 1 initialized. Find the glowing stairwell at the end of the labyrinth!`, 'sys-msg');
+    logMessage(`[SYSTEM AI]: Safe Room entry sealed. Welcome, Crawler Carl. Your sponsor items are available.`, 'sys-msg');
 
     this.animate();
   }
@@ -91,9 +92,8 @@ class Game3D {
   }
 
   setupInputs() {
-    // Click and Hold Steering
     window.addEventListener('mousedown', (e) => {
-      if (e.button === 0) { // Left click
+      if (e.button === 0) {
         this.isMouseDown = true;
         this.updateTargetFromMouse(e);
       }
@@ -215,10 +215,21 @@ class Game3D {
     const carlPos = this.carl.getPosition();
     this.carlLight.position.set(carlPos.x, carlPos.y + 2.0, carlPos.z);
 
-    // Check if Carl reached the stairwell goal
+    // Check Safe Room Door Proximity
+    if (this.mapData.safeRoomDoors) {
+      for (let door of this.mapData.safeRoomDoors) {
+        if (carlPos.distanceTo(door.position) < 3.0) {
+          if (!this.inSafeRoom) {
+            this.inSafeRoom = true;
+            logMessage(`[SYNDICATE ANNOUNCEMENT]: Entering Safe Room. Monsters cannot enter! Rest and prepare.`, 'sys-msg');
+          }
+        }
+      }
+    }
+
+    // Check Stairwell Goal
     if (this.mapData.stairwell && carlPos.distanceTo(this.mapData.stairwell) < 2.5) {
       logMessage(`[CONGRATULATIONS]: Crawler Carl and Princess Donut have reached the Level 1 Stairwell! Floor cleared!`, 'sys-msg');
-      // Reset position to spawn to loop next floor
       const spawnRoom = this.mapData.rooms[0];
       carlPos.set(spawnRoom.x * 4 + (spawnRoom.w * 2), 0, spawnRoom.y * 4 + (spawnRoom.h * 2));
       this.targetPos.copy(carlPos);
