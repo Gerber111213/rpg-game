@@ -50,17 +50,24 @@ export class DungeonBuilder {
   }
 
   carveCorridor(x1, x2, y1, y2) {
-    for (let x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) { this.grid[y1][x] = 1; this.grid[y1+1][x] = 1; }
-    for (let y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) { this.grid[y][x2] = 1; this.grid[y][x2+1] = 1; }
+    for (let x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) { 
+      if (y1 >= 0 && y1 < this.gridRows) this.grid[y1][x] = 1; 
+      if (y1 + 1 >= 0 && y1 + 1 < this.gridRows) this.grid[y1 + 1][x] = 1; 
+    }
+    for (let y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) { 
+      if (x2 >= 0 && x2 < this.gridCols) this.grid[y][x2] = 1; 
+      if (x2 + 1 >= 0 && x2 + 1 < this.gridCols) this.grid[y][x2 + 1] = 1; 
+    }
   }
 
   render3DWorld() {
     const floorGeo = new THREE.BoxGeometry(this.tileSize, 0.4, this.tileSize);
     const wallGeo = new THREE.BoxGeometry(this.tileSize, 5.0, this.tileSize);
 
-    // Reliable materials that react perfectly to point lights and ambient lighting
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0x3b302a, roughness: 0.8, metalness: 0.1 });
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0x5a5561, roughness: 0.6, metalness: 0.2 });
+    // High-visibility materials with distinct colors and cave lighting response
+    const floorMat = new THREE.MeshLambertMaterial({ color: 0x4a3b32 }); // Dirt/Rock Floor
+    const safeFloorMat = new THREE.MeshLambertMaterial({ color: 0x2b4c66 }); // Safe Room Floor
+    const wallMat = new THREE.MeshLambertMaterial({ color: 0x6e6875 }); // Manufactured Stone/Brick Wall
 
     for (let r = 0; r < this.gridRows; r++) {
       for (let c = 0; c < this.gridCols; c++) {
@@ -68,19 +75,17 @@ export class DungeonBuilder {
         const posZ = r * this.tileSize;
 
         if (this.grid[r][c] > 0) {
-          const floor = new THREE.Mesh(floorGeo, floorMat);
+          const mat = this.grid[r][c] === 2 ? safeFloorMat : floorMat;
+          const floor = new THREE.Mesh(floorGeo, mat);
           floor.position.set(posX, -0.2, posZ);
-          floor.receiveShadow = true;
           this.scene.add(floor);
         } else {
           const wall = new THREE.Mesh(wallGeo, wallMat);
           wall.position.set(posX, 2.5, posZ);
-          wall.castShadow = true;
-          wall.receiveShadow = true;
           this.scene.add(wall);
 
-          if (Math.random() < 0.08) {
-            this.addTorch(posX, 2.0, posZ);
+          if (Math.random() < 0.05) {
+            this.addTorch(posX, 3.0, posZ);
           }
         }
       }
@@ -88,7 +93,13 @@ export class DungeonBuilder {
   }
 
   addTorch(x, y, z) {
-    const light = new THREE.PointLight(0xff7722, 3.0, 15);
+    const flameGeo = new THREE.SphereGeometry(0.25, 8, 8);
+    const flameMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+    const flame = new THREE.Mesh(flameGeo, flameMat);
+    flame.position.set(x, y, z);
+    this.scene.add(flame);
+
+    const light = new THREE.PointLight(0xffaa44, 2.5, 20);
     light.position.set(x, y, z);
     this.scene.add(light);
     this.torches.push(light);
