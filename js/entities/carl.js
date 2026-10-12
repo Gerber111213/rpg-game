@@ -35,7 +35,7 @@ export class Carl3D {
     hair.position.set(0, 0.2, 0);
     head.add(hair);
 
-    // Heart Boxers (Lower body)
+    // Heart Boxers
     const shortsGeo = new THREE.BoxGeometry(0.68, 0.5, 0.42);
     const shorts = new THREE.Mesh(shortsGeo, boxerMat);
     shorts.position.y = -0.75;
@@ -71,13 +71,16 @@ export class Carl3D {
 
   isWalkable(x, z) {
     if (!this.grid) return true;
-    const col = Math.floor((x + this.tileSize / 2) / this.tileSize);
-    const row = Math.floor((z + this.tileSize / 2) / this.tileSize);
+    
+    // Convert world position to grid indices correctly matching DungeonBuilder layout
+    const col = Math.floor(x / this.tileSize + 0.5);
+    const row = Math.floor(z / this.tileSize + 0.5);
 
     if (row < 0 || row >= this.grid.length || col < 0 || col >= this.grid[0].length) {
       return false;
     }
-    // Grid value > 0 means floor/safe room; 0 means solid wall
+    
+    // Grid value > 0 means floor / safe room. 0 means solid manufactured wall.
     return this.grid[row][col] > 0;
   }
 
@@ -90,14 +93,22 @@ export class Carl3D {
       dir.normalize();
       const step = dir.clone().multiplyScalar(this.speed * delta);
 
-      // Test X and Z movement separately for smooth wall-sliding
+      // Check collision box buffer (adds a 0.4 radius check so Carl doesn't clip into wall corners)
+      const buffer = 0.4;
       let nextX = currentPos.x + step.x;
       let nextZ = currentPos.z + step.z;
 
-      if (this.isWalkable(nextX, currentPos.z)) {
+      // Test X axis movement with buffer
+      const xTestOffset = step.x > 0 ? buffer : -buffer;
+      if (this.isWalkable(nextX + xTestOffset, currentPos.z - buffer) && 
+          this.isWalkable(nextX + xTestOffset, currentPos.z + buffer)) {
         currentPos.x = nextX;
       }
-      if (this.isWalkable(currentPos.x, nextZ)) {
+
+      // Test Z axis movement with buffer
+      const zTestOffset = step.z > 0 ? buffer : -buffer;
+      if (this.isWalkable(currentPos.x - buffer, nextZ + zTestOffset) && 
+          this.isWalkable(currentPos.x + buffer, nextZ + zTestOffset)) {
         currentPos.z = nextZ;
       }
 
