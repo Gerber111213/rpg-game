@@ -23,6 +23,7 @@ class Carl extends Phaser.Physics.Arcade.Sprite {
     this.hp = 100;
     this.speed = 180;
     this.currentDirection = 'south';
+    this.name = "Carl";
   }
 
   moveToTarget(targetX, targetY) {
@@ -148,9 +149,9 @@ class Mordecai extends Phaser.Physics.Arcade.Sprite {
     this.name = "Mordecai";
     this.dialogueIndex = 0;
     this.quotes = [
-      "Listen to me, Carl. Do NOT touch anything glowing without identifying it first.",
-      "The Syndicate AI loves drama. Put on a good show or floor two will kill you both.",
-      "Donut, please stop drinking the health potions. Those are for combat emergencies."
+      "Listen to me, Carl. Do NOT touch glowing syndicate chests without checking for traps.",
+      "The Syndicate AI loves high-drama ratings. Put on a show or the collapse will get us.",
+      "Donut, stop demanding custom carpeting from the goblins. They don't have interior decorators."
     ];
   }
   getAdvice() {
@@ -193,12 +194,14 @@ class DungeonScene extends Phaser.Scene {
   }
 
   create() {
-    // --- FORCEFULLY PREVENT BROWSER DEFAULT RIGHT-CLICK MENU ---
+    // Lock out native browser right-click context menu entirely
     this.game.canvas.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       e.stopPropagation();
       return false;
     }, false);
+
+    this.setupAnimations();
 
     this.tileSize = 48;
     this.mapCols = 250;
@@ -212,7 +215,6 @@ class DungeonScene extends Phaser.Scene {
     this.dungeonGrid = Array.from({ length: this.mapRows }, () => Array(this.mapCols).fill(null));
     const rooms = this.generateMassiveRoomsAndCorridors();
 
-    // Instantiate solid physics colliders for all wall tiles across the entire map
     for (let r = 0; r < this.mapRows; r++) {
       for (let c = 0; c < this.mapCols; c++) {
         if (this.dungeonGrid[r][c].type === 0) {
@@ -223,7 +225,7 @@ class DungeonScene extends Phaser.Scene {
       }
     }
 
-    // 2. Spawn Characters
+    // 2. Spawn Characters in the Starting Room
     const spawnRoom = rooms[0];
     const spawnX = (spawnRoom.x + Math.floor(spawnRoom.w / 2)) * this.tileSize;
     const spawnY = (spawnRoom.y + Math.floor(spawnRoom.h / 2)) * this.tileSize;
@@ -232,13 +234,13 @@ class DungeonScene extends Phaser.Scene {
     this.donut = new Donut(this, spawnX - 30, spawnY);
     this.mordecai = new Mordecai(this, spawnX + 40, spawnY);
 
-    // Populate Goblins
+    // Populate Goblins across rooms
     for (let i = 1; i < rooms.length; i++) {
       const room = rooms[i];
       if (Math.random() > 0.3) {
         const gx = (room.x + Math.floor(room.w / 2)) * this.tileSize;
         const gy = (room.y + Math.floor(room.h / 2)) * this.tileSize;
-        const goblin = new Enemy(this, gx, gy, 'goblin', `Goblin Scavenger ${i}`, 30, 5);
+        const goblin = new Enemy(this, gx, gy, 'goblin', `Floor 1 Goblin Scavenger #${i}`, 30, 5);
         this.enemies.add(goblin);
       }
     }
@@ -256,12 +258,16 @@ class DungeonScene extends Phaser.Scene {
     this.targetX = this.carl.x;
     this.targetY = this.carl.y;
     this.donutCooldown = 0;
+    this.announcementTimer = 0;
 
     this.activeTileSprites = new Map();
     this.lastCarlTileX = -999;
     this.lastCarlTileY = -999;
 
-    logMessage(`[SYSTEM AI]: Floor 1 physics mesh secured. Walkways clear.`, 'sys-msg');
+    // --- IMMERSIVE BOOK-ACCURATE OPENING LOGS ---
+    logMessage(`[SYSTEM ANNOUNCEMENT]: Welcome, Crawlers, to Floor 1 of the Crawler World Dungeon!`, 'sys-msg');
+    logMessage(`[SYNDICATE AI]: Crawler Bradley Frederick Bruce Hamblin detected. Current footwear: NONE. Barefoot penalty active!`, 'sys-msg');
+    logMessage(`DONUT: "Carl! Tell these alien monsters my tiara is crooked and it's giving me a migraine!"`, 'donut-msg');
 
     this.input.on('pointerdown', (pointer) => {
       if (pointer.rightButtonDown() || pointer.button === 2) {
@@ -278,7 +284,7 @@ class DungeonScene extends Phaser.Scene {
     for (let r = 0; r < this.mapRows; r++) {
       for (let c = 0; c < this.mapCols; c++) {
         const wallTex = Phaser.Utils.Array.GetRandom(this.wallVariants);
-        this.dungeonGrid[r][c] = { type: 0, texture: wallTex }; // 0 = Wall
+        this.dungeonGrid[r][c] = { type: 0, texture: wallTex };
       }
     }
 
@@ -312,7 +318,7 @@ class DungeonScene extends Phaser.Scene {
         for (let rx = x; rx < x + w; rx++) {
           for (let ry = y; ry < y + h; ry++) {
             const floorTex = Phaser.Utils.Array.GetRandom(this.floorVariants);
-            this.dungeonGrid[ry][rx] = { type: 1, texture: floorTex }; // 1 = Floor
+            this.dungeonGrid[ry][rx] = { type: 1, texture: floorTex };
           }
         }
 
@@ -355,7 +361,6 @@ class DungeonScene extends Phaser.Scene {
     }
   }
 
-  // --- VISION & VISUAL CULLING (Purely for rendering what Carl can see) ---
   updateVisionAndTiles() {
     const carlTileX = Math.floor(this.carl.x / this.tileSize);
     const carlTileY = Math.floor(this.carl.y / this.tileSize);
@@ -449,6 +454,19 @@ class DungeonScene extends Phaser.Scene {
 
     this.updateVisionAndTiles();
 
+    // Random Galactic Chat / Syndicate Flavor Ticker
+    this.announcementTimer++;
+    if (this.announcementTimer === 600) {
+      const chatter = [
+        `[GALACTIC CHAT]: Viewer 'Zylox_9' tipped 500 coin: "Go Carl! Show those goblins what a barefoot human can do!"`,
+        `[SYNDICATE AI]: Reminder to all viewers: Betting closes on Crawler Carl's foot durability in 10 minutes.`,
+        `DONUT: "Carl, if you don't find me a velvet cushion to sit on in the next five minutes, I am going to fire you as my manager."`
+      ];
+      logMessage(Phaser.Utils.Array.GetRandom(chatter), 'sys-msg');
+      this.announcementTimer = 0;
+    }
+
+    // Donut Combat AI
     if (this.donutCooldown <= 0) {
       this.enemies.getChildren().forEach(enemy => {
         const range = Phaser.Math.Distance.Between(this.donut.x, this.donut.y, enemy.x, enemy.y);
@@ -456,7 +474,7 @@ class DungeonScene extends Phaser.Scene {
           const missile = this.projectiles.create(this.donut.x, this.donut.y, 'missile');
           this.physics.moveToObject(missile, enemy, 350);
           this.donutCooldown = 120;
-          logMessage(`DONUT: "TAKE THIS, YOU BRUTE!"`, 'donut-msg');
+          logMessage(`DONUT: "TAKE THIS, YOU WRETCHED HOOLIGAN!"`, 'donut-msg');
         }
       });
     } else {
@@ -468,7 +486,7 @@ class DungeonScene extends Phaser.Scene {
       const defeated = enemy.takeDamage(15);
       logMessage(`[Magic Missile] hit ${enemy.name} for 15 damage!`, 'combat-msg');
       if (defeated) {
-        logMessage(`${enemy.name} was obliterated!`, 'sys-msg');
+        logMessage(`${enemy.name} was obliterated! Syndicate rating increased by +0.04%!`, 'sys-msg');
       }
     });
   }
@@ -481,10 +499,10 @@ class DungeonScene extends Phaser.Scene {
     const donutBounds = new Phaser.Geom.Rectangle(this.donut.x - 12, this.donut.y - 12, 24, 24);
     if (donutBounds.contains(worldX, worldY)) {
       this.addMenuOption("Examine Princess Donut", () => {
-        logMessage(`[EXAMINE]: Princess Donut - Level 1 Grand Champion Persian Cat. She is wearing a pink sequined collar and a tiny ruby tiara.`, 'donut-msg');
+        logMessage(`[EXAMINE]: Princess Donut - Grand Champion Persian. Wearing a ruby tiara and pink collar. Status: Outraged by dungeon sanitation.`, 'donut-msg');
       });
       this.addMenuOption("Talk to Donut", () => {
-        logMessage(`DONUT: "CARL! THIS FLOOR IS FILTHY! WHY ARE THERE NO CARPETS?!"`, 'donut-msg');
+        logMessage(`DONUT: "CARL! WHY DO YOU ALWAYS SMELL LIKE BASEMENT MOLD AND GOBLIN BLOOD?"`, 'donut-msg');
       });
     }
 
@@ -500,7 +518,7 @@ class DungeonScene extends Phaser.Scene {
       this.addMenuOption(`Attack ${clickedEnemy.name}`, () => {
         this.targetX = clickedEnemy.x;
         this.targetY = clickedEnemy.y;
-        logMessage(`Carl advances on ${clickedEnemy.name}!`, 'combat-msg');
+        logMessage(`Carl advances on ${clickedEnemy.name} with grim tactical resolve!`, 'combat-msg');
       });
     }
 
