@@ -8,6 +8,9 @@ import { AudioManager } from './audioManager.js';
 import { InventoryManager } from './inventory.js';
 
 const logBox = document.getElementById('log-box');
+const contextMenu = document.getElementById('context-menu');
+const contextOptions = document.getElementById('context-options');
+
 function logMessage(text, className = '') {
   const p = document.createElement('p');
   p.className = className;
@@ -24,7 +27,7 @@ class Game3D {
     
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x050508);
-    this.scene.fog = new THREE.FogExp2(0x050508, 0.025); // Extended view distance
+    this.scene.fog = new THREE.FogExp2(0x050508, 0.025);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -32,9 +35,8 @@ class Game3D {
     this.container.appendChild(this.renderer.domElement);
 
     this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-    this.cameraOffset = new THREE.Vector3(0, 24, 18); // Wider angle view
+    this.cameraOffset = new THREE.Vector3(0, 24, 18);
 
-    // Brighter ambient & extended torch range
     const ambientLight = new THREE.AmbientLight(0x333344, 1.5);
     this.scene.add(ambientLight);
 
@@ -44,6 +46,9 @@ class Game3D {
 
     this.audio = new AudioManager();
     this.audio.attachToCamera(this.camera);
+
+    this.inventory = new InventoryManager();
+    this.combat = new CombatEngine(this.scene, this.inventory);
 
     this.dungeon = new DungeonBuilder(this.scene);
     this.mapData = this.dungeon.build();
@@ -55,9 +60,6 @@ class Game3D {
     this.carl = new Carl3D(this.scene, spawnX, spawnZ);
     this.donut = new Donut3D(this.scene, spawnX - 2, spawnZ);
     this.mordecai = new Mordecai3D(this.scene, spawnX + 3, spawnZ);
-
-    this.inventory = new InventoryManager(this.carl, this.donut);
-    this.combat = new CombatEngine(this.scene);
 
     this.monsters = [];
     this.projectiles = [];
@@ -72,7 +74,7 @@ class Game3D {
     this.setupInputs();
     this.clock = new THREE.Clock();
 
-    logMessage(`[SYSTEM AI]: Floor 1 Labyrinth fully initialized with procedural stone textures and torches.`, 'sys-msg');
+    logMessage(`[SYSTEM AI]: Floor 1 initialized with persistent monster corpses and loot system.`, 'sys-msg');
 
     this.animate();
   }
@@ -88,12 +90,13 @@ class Game3D {
   }
 
   setupInputs() {
+    // Left click to move or attack
     window.addEventListener('click', (e) => {
+      this.hideContextMenu();
       this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
       this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
       this.raycaster.setFromCamera(this.mouse, this.camera);
       
-      // Check if clicking a monster
       const monsterMeshes = this.monsters.map(m => m.mesh);
       const hitMonsters = this.raycaster.intersectObjects(monsterMeshes);
       
@@ -102,20 +105,50 @@ class Game3D {
         const targetMonster = this.monsters.find(m => m.mesh === clickedMesh);
         if (targetMonster && !targetMonster.isDead) {
           const defeated = targetMonster.takeDamage(20);
-          logMessage(`CARL strikes ${targetMonster.name} with spiked club for 20 damage!`, 'combat-msg');
+          logMessage(`CARL strikes ${targetMonster.name} for 20 damage!`, 'combat-msg');
           if (defeated) {
-            logMessage(`${targetMonster.name} was obliterated!`, 'sys-msg');
+            this.combat.handleCorpseCollapse(targetMonster);
+            logMessage(`${targetMonster.name} was obliterated! Corpse ready for looting.`, 'sys-msg');
           }
           return;
         }
       }
 
-      // Otherwise move
       const intersects = this.raycaster.intersectObjects(this.scene.children, true);
       if (intersects.length > 0) {
         this.targetPos.copy(intersects[0].point);
         this.targetPos.y = 0;
       }
+    });
+
+    // Right click for context menu (Looting corpses)
+    window.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      this.raycaster.setFromCamera(this.mouse, this.camera);
+
+      const monsterMeshes = this.monsters.map(m => m.mesh);
+      const hitMonsters = this.raycaster.intersectObjects(monsterMeshes);
+
+      if (hitMonsters.length > 0) {
+        const clickedMesh = hitMonsters[0].object;
+        const targetMonster = this.monsters.find(m => m.mesh === clickedMesh);
+        
+        if (targetMonster && targetMonster.isDead) {
+          this.showContextMenu(e.clientX, e.clientY, [
+            {
+              text: `Loot ${targetMonster.name} Corpse`,
+              action: () => {
+                const msg = this.combat.lootCorpse(targetMonster);
+                logMessage(msg, 'sys-msg');
+              }
+            }
+          ]);
+          return;
+        }
+      }
+      this.hideContextMenu();
     });
 
     window.addEventListener('keydown', (e) => {
@@ -125,6 +158,27 @@ class Game3D {
     });
   }
 
+  showContextMenu(x, y, options) {
+    if (!contextMenu || !contextOptions) return;
+    contextOptions.innerHTML = '';
+    options.forEach(opt => {
+      const li = document.createElement('li');
+      li.textContent = opt.text;
+      li.addEventListener('click', () => {
+        opt.action();
+        this.hideContextMenu();
+      });
+      contextOptions.appendChild(li);
+    });
+    contextMenu.style.left = `${x}px`;
+    contextMenu.style.top = `${y}px`;
+    contextMenu.classList.remove('hidden');
+  }
+
+  hideContextMenu() {
+    if (contextMenu) contextMenu.classList.add('hidden');
+  }
+
   animate() {
     requestAnimationFrame(() => this.animate());
     const delta = this.clock.getDelta();
@@ -132,12 +186,10 @@ class Game3D {
     this.carl.moveTo(this.targetPos, delta);
     this.donut.follow(this.carl.getPosition(), delta);
 
-    // Update Monster AI & Chasing
     for (let m of this.monsters) {
       m.updateAI(this.carl.getPosition(), delta);
     }
 
-    // Camera & Light tracking
     const carlPos = this.carl.getPosition();
     this.playerLight.position.set(carlPos.x, carlPos.y + 3, carlPos.z);
     this.camera.position.copy(carlPos).add(this.cameraOffset);
