@@ -16,11 +16,11 @@ export class CombatEngine {
 
   lootCorpse(monster) {
     if (monster.corpseLoot) {
-      const added = this.inventory.addLoot(monster.corpseLoot);
+      const added = this.inventory.addItem(monster.corpseLoot);
       if (added) {
         const name = monster.corpseLoot.name;
         monster.corpseLoot = null;
-        return `Salvaged items into inventory: ${name}!`;
+        return `Salvaged ${name} into inventory!`;
       }
       return `Inventory is full!`;
     }
