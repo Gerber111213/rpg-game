@@ -10,7 +10,6 @@ export class Monster3D {
     this.tileSize = 4;
     this.speed = 3.0;
     this.attackCooldown = 0;
-    this.rangedCooldown = 0;
 
     this.group = new THREE.Group();
 
@@ -95,18 +94,13 @@ export class Monster3D {
       moveDir.y = 0;
       moveDir.normalize();
 
+      // Stop short of Carl for clean melee spacing (1.8 units away)
       if (distToCarl <= 1.8) {
         moveDir.set(0, 0, 0);
         this.attackCooldown -= delta;
         if (this.attackCooldown <= 0) {
           this.attackCooldown = 1.8;
           if (callbacks.onMelee) callbacks.onMelee(this.type === 'Rage Ibis' ? 15 : 10);
-        }
-      } else {
-        this.rangedCooldown -= delta;
-        if (this.rangedCooldown <= 0 && distToCarl > 5.0 && distToCarl < 12.0) {
-          this.rangedCooldown = 4.0;
-          if (callbacks.onRanged) callbacks.onRanged(currentPos.clone(), carlPos.clone());
         }
       }
     } else {
