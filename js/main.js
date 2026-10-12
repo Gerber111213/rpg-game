@@ -36,16 +36,14 @@ class Game3D {
     this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
     this.cameraOffset = new THREE.Vector3(0, 30, 22);
 
-    const ambientLight = new THREE.AmbientLight(0x222233, 0.3);
+    const ambientLight = new THREE.AmbientLight(0x222233, 0.4);
     this.scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0x444466, 0.2);
+    const dirLight = new THREE.DirectionalLight(0x444466, 0.3);
     dirLight.position.set(20, 40, 20);
     this.scene.add(dirLight);
 
     this.audio = new AudioManager();
-    this.audio.attachToCamera(this.camera);
-
     this.inventory = new InventoryManager();
     this.combat = new CombatEngine(this.scene, this.inventory);
 
@@ -65,6 +63,7 @@ class Game3D {
     this.scene.add(this.carlLight);
 
     this.monsters = [];
+    this.projectiles = [];
     this.spawnMonsters();
 
     this.targetPos = this.carl.getPosition().clone();
@@ -73,12 +72,32 @@ class Game3D {
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
 
+    this.setupUI();
     this.setupInputs();
     this.clock = new THREE.Clock();
 
-    logMessage(`[SYSTEM AI]: Floor 1 initialized. Left-click monsters to attack in melee. Press '1' for Magic Missile!`, 'sys-msg');
+    logMessage(`[SYSTEM AI]: Welcome to Floor 1. Left door leads to Intro/Syndicate Broadcast; Right door leads to the Dungeon World!`, 'sys-msg');
 
     this.animate();
+  }
+
+  setupUI() {
+    const hud = document.createElement('div');
+    hud.id = 'hud-overlay';
+    hud.innerHTML = `
+      <div class="hud-title">CRAWLER CARL (LVL 1)</div>
+      <div class="hud-row">HP: <span id="hp-text">100/100</span><div class="hp-bar-container"><div id="player-hp-fill"></div></div></div>
+    `;
+    document.body.appendChild(hud);
+  }
+
+  updateHUD() {
+    const hpText = document.getElementById('hp-text');
+    const hpFill = document.getElementById('player-hp-fill');
+    if (hpText && hpFill) {
+      hpText.textContent = `${this.carl.hp}/${this.carl.maxHp}`;
+      hpFill.style.width = `${(this.carl.hp / this.carl.maxHp) * 100}%`;
+    }
   }
 
   spawnMonsters() {
@@ -105,9 +124,7 @@ class Game3D {
       }
     });
 
-    window.addEventListener('mouseup', () => {
-      this.isMouseDown = false;
-    });
+    window.addEventListener('mouseup', () => { this.isMouseDown = false; });
 
     window.addEventListener('click', (e) => {
       this.hideContextMenu();
@@ -123,15 +140,17 @@ class Game3D {
         const targetMonster = this.monsters.find(m => m.torso === clickedMesh || m.group.children.includes(clickedMesh));
         if (targetMonster && !targetMonster.isDead) {
           const dist = this.carl.getPosition().distanceTo(targetMonster.group.position);
-          if (dist < 4.0) {
+          if (dist < 5.0) {
+            this.audio.playSlash();
+            this.showAttackSlash(targetMonster.group.position);
             const defeated = targetMonster.takeDamage(25);
-            logMessage(`CARL strikes ${targetMonster.name} with feet/melee for 25 damage!`, 'combat-msg');
+            logMessage(`CARL strikes ${targetMonster.name} for 25 damage!`, 'combat-msg');
             if (defeated) {
               this.combat.handleCorpseCollapse(targetMonster);
               logMessage(`${targetMonster.name} was obliterated! Corpse ready for looting.`, 'sys-msg');
             }
           } else {
-            logMessage(`Too far to strike! Get closer to ${targetMonster.name}.`, 'sys-msg');
+            logMessage(`Target too far away for melee strike.`, 'sys-msg');
           }
           return;
         }
@@ -144,21 +163,19 @@ class Game3D {
         if (modal) modal.classList.toggle('hidden');
       }
       if (e.key === '1') {
-        // Cast Magic Missile at nearest monster
         const liveMonsters = this.monsters.filter(m => !m.isDead);
         if (liveMonsters.length > 0) {
           const nearest = liveMonsters.reduce((prev, curr) => 
             prev.group.position.distanceTo(this.carl.getPosition()) < curr.group.position.distanceTo(this.carl.getPosition()) ? prev : curr
           );
           if (nearest.group.position.distanceTo(this.carl.getPosition()) < 16.0) {
+            this.audio.playShoot();
             const defeated = nearest.takeDamage(40);
             logMessage(`CARL casts MAGIC MISSILE! 40 arcane damage dealt to ${nearest.name}!`, 'combat-msg');
             if (defeated) {
               this.combat.handleCorpseCollapse(nearest);
               logMessage(`${nearest.name} was obliterated by magic!`, 'sys-msg');
             }
-          } else {
-            logMessage(`Targets too far away for Magic Missile.`, 'sys-msg');
           }
         }
       }
@@ -194,6 +211,38 @@ class Game3D {
     });
   }
 
+  showAttackSlash(pos) {
+    const slashGeo = new THREE.RingGeometry(0.5, 0.7, 12);
+    const slashMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
+    const slash = new THREE.Mesh(slashGeo, slashMat);
+    slash.position.copy(pos);
+    slash.position.y += 1.0;
+    slash.rotation.x = Math.PI / 2;
+    this.scene.add(slash);
+
+    setTimeout(() => {
+      this.scene.remove(slash);
+      slash.geometry.dispose();
+      slash.material.dispose();
+    }, 150);
+  }
+
+  spawnProjectile(fromPos, toPos) {
+    const projGeo = new THREE.SphereGeometry(0.2, 8, 8);
+    const projMat = new THREE.MeshBasicMaterial({ color: 0xff2222 });
+    const proj = new THREE.Mesh(projGeo, projMat);
+    proj.position.copy(fromPos);
+    proj.position.y += 1.0;
+    this.scene.add(proj);
+
+    this.projectiles.push({
+      mesh: proj,
+      dir: new THREE.Vector3().subVectors(toPos, fromPos).normalize(),
+      speed: 12.0,
+      life: 2.0
+    });
+  }
+
   updateTargetFromMouse(e) {
     this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
@@ -222,9 +271,7 @@ class Game3D {
     contextMenu.classList.remove('hidden');
   }
 
-  hideContextMenu() {
-    if (contextMenu) contextMenu.classList.add('hidden');
-  }
+  hideContextMenu() { if (contextMenu) contextMenu.classList.add('hidden'); }
 
   animate() {
     requestAnimationFrame(() => this.animate());
@@ -233,16 +280,40 @@ class Game3D {
     this.carl.moveTo(this.targetPos, delta);
     this.donut.follow(this.carl.getPosition(), delta);
 
-    // Update Monster AI & Floating UI
     for (let m of this.monsters) {
-      m.updateAI(this.carl.getPosition(), delta, (damage) => {
-        this.carl.hp = Math.max(0, this.carl.hp - damage);
-        logMessage(`[COMBAT]: ${m.name} strikes Carl for ${damage} damage! (Carl HP: ${this.carl.hp}/100)`, 'combat-msg');
-        if (this.carl.hp <= 0) {
-          logMessage(`[FATAL]: Crawler Carl has perished on Floor 1!`, 'sys-msg');
+      m.updateAI(this.carl.getPosition(), delta, {
+        onMelee: (dmg) => {
+          this.carl.hp = Math.max(0, this.carl.hp - dmg);
+          this.audio.playHit();
+          logMessage(`[COMBAT]: ${m.name} strikes Carl for ${dmg} damage!`, 'combat-msg');
+          this.updateHUD();
+          if (this.carl.hp <= 0) logMessage(`[FATAL]: Crawler Carl has perished!`, 'sys-msg');
+        },
+        onRanged: (fromPos, toPos) => {
+          this.audio.playShoot();
+          this.spawnProjectile(fromPos, toPos);
         }
       });
-      m.updateUI(this.camera, this.renderer);
+      m.updateUI(this.camera);
+    }
+
+    // Update projectiles
+    for (let i = this.projectiles.length - 1; i >= 0; i--) {
+      const p = this.projectiles[i];
+      p.mesh.position.addScaledVector(p.dir, p.speed * delta);
+      p.life -= delta;
+
+      if (p.mesh.position.distanceTo(this.carl.getPosition()) < 1.0) {
+        this.carl.hp = Math.max(0, this.carl.hp - 10);
+        this.audio.playHit();
+        logMessage(`[COMBAT]: Monster projectile hits Carl for 10 damage!`, 'combat-msg');
+        this.updateHUD();
+        this.scene.remove(p.mesh);
+        this.projectiles.splice(i, 1);
+      } else if (p.life <= 0) {
+        this.scene.remove(p.mesh);
+        this.projectiles.splice(i, 1);
+      }
     }
 
     const carlPos = this.carl.getPosition();
@@ -251,16 +322,19 @@ class Game3D {
     if (this.mapData.safeRoomDoors) {
       for (let door of this.mapData.safeRoomDoors) {
         if (carlPos.distanceTo(door.position) < 3.0) {
-          if (!this.inSafeRoom) {
+          if (door.isIntroDoor) {
+            logMessage(`[SYNDICATE BROADCAST]: "Welcome Crawler! Borant Corporation reminds you that viewer ratings are mandatory for survival!"`, 'sys-msg');
+          } else if (!this.inSafeRoom) {
             this.inSafeRoom = true;
-            logMessage(`[SYNDICATE ANNOUNCEMENT]: Entering Safe Room. Monsters cannot enter!`, 'sys-msg');
+            logMessage(`[SYNDICATE ANNOUNCEMENT]: Entered Safe Room sanctuary.`, 'sys-msg');
           }
         }
       }
     }
 
     if (this.mapData.stairwell && carlPos.distanceTo(this.mapData.stairwell) < 2.5) {
-      logMessage(`[CONGRATULATIONS]: Level 1 Stairwell reached! Floor cleared!`, 'sys-msg');
+      this.audio.playVictory();
+      logMessage(`[VICTORY]: Level 1 cleared! Advancing to Floor 2...`, 'sys-msg');
       const spawnRoom = this.mapData.rooms[0];
       carlPos.set(spawnRoom.x * 4 + (spawnRoom.w * 2), 0, spawnRoom.y * 4 + (spawnRoom.h * 2));
       this.targetPos.copy(carlPos);
