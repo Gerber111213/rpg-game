@@ -8,13 +8,19 @@ export class DungeonBuilder {
     this.rooms = [];
     this.torches = [];
     this.stairwellPosition = null;
+    this.safeRoomDoors = [];
   }
 
   build() {
     this.generateRoomsAndCorridors();
     this.placeStairwell();
     this.render3DWorld();
-    return { grid: this.grid, rooms: this.rooms, stairwell: this.stairwellPosition };
+    return { 
+      grid: this.grid, 
+      rooms: this.rooms, 
+      stairwell: this.stairwellPosition,
+      safeRoomDoors: this.safeRoomDoors 
+    };
   }
 
   generateRoomsAndCorridors() {
@@ -34,7 +40,8 @@ export class DungeonBuilder {
       }
 
       if (!overlap) {
-        const isSafe = (i === 0);
+        // Room 0 is always the main Safe Room spawn point
+        const isSafe = (i === 0 || i % 7 === 0); 
         for (let rx = x; rx < x + w; rx++) {
           for (let ry = y; ry < y + h; ry++) {
             this.grid[ry][rx] = isSafe ? 2 : 1;
@@ -64,7 +71,6 @@ export class DungeonBuilder {
 
   placeStairwell() {
     if (this.rooms.length < 2) return;
-    // Pick the furthest room from the spawn room (room 0)
     const spawnRoom = this.rooms[0];
     let furthestRoom = this.rooms[1];
     let maxDist = 0;
@@ -82,7 +88,6 @@ export class DungeonBuilder {
     const stairZ = (furthestRoom.y + Math.floor(furthestRoom.h / 2)) * this.tileSize;
     this.stairwellPosition = new THREE.Vector3(stairX, 0, stairZ);
 
-    // Build 3D Stairwell Mesh
     const stairGroup = new THREE.Group();
     const stairMat = new THREE.MeshLambertMaterial({ color: 0x555566 });
     const glowMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
@@ -94,7 +99,6 @@ export class DungeonBuilder {
       stairGroup.add(step);
     }
 
-    // Portal glowing core
     const coreGeo = new THREE.CylinderGeometry(0.6, 0.6, 1.5, 16);
     const core = new THREE.Mesh(coreGeo, glowMat);
     core.position.set(0, 0.8, 0);
@@ -134,6 +138,60 @@ export class DungeonBuilder {
           if (Math.random() < 0.05) {
             this.addTorch(posX, 3.0, posZ);
           }
+        }
+      }
+    }
+
+    // Build Heavy Security Doors for Safe Rooms
+    this.buildSafeRoomDoors();
+  }
+
+  buildSafeRoomDoors() {
+    const doorMat = new THREE.MeshLambertMaterial({ color: 0x2c3e50 }); // Steel Blast Door
+    const frameMat = new THREE.MeshLambertMaterial({ color: 0x7f8c8d }); // Reinforced Frame
+    const lightMat = new THREE.MeshBasicMaterial({ color: 0x2ecc71 });  // Safe Room Green Beacon
+
+    for (let room of this.rooms) {
+      if (room.isSafe) {
+        // Find an entry point on the perimeter of the safe room
+        const doorCol = room.x + Math.floor(room.w / 2);
+        const doorRow = room.y - 1; // Just outside the top wall
+
+        if (doorRow >= 0 && this.grid[doorRow][doorCol] === 1) {
+          const doorX = doorCol * this.tileSize;
+          const doorZ = doorRow * this.tileSize;
+
+          const doorGroup = new THREE.Group();
+
+          // Door Frame
+          const frameGeo = new THREE.BoxGeometry(this.tileSize, 4.5, 0.6);
+          const frame = new THREE.Mesh(frameGeo, frameMat);
+          frame.position.set(0, 2.25, 0);
+          doorGroup.add(frame);
+
+          // Sliding Blast Door Panel (with offset so it looks like an airtight seal)
+          const panelGeo = new THREE.BoxGeometry(this.tileSize - 0.4, 4.0, 0.4);
+          const panel = new THREE.Mesh(panelGeo, doorMat);
+          panel.position.set(0, 2.0, 0);
+          doorGroup.add(panel);
+
+          // Green Safe Room Status Light
+          const beaconGeo = new THREE.SphereGeometry(0.2, 8, 8);
+          const beacon = new THREE.Mesh(beaconGeo, lightMat);
+          beacon.position.set(0, 4.0, 0.3);
+          doorGroup.add(beacon);
+
+          const beaconLight = new THREE.PointLight(0x2ecc71, 2.0, 6);
+          beaconLight.position.set(doorX, 4.0, doorZ);
+          this.scene.add(beaconLight);
+
+          doorGroup.position.set(doorX, 0, doorZ);
+          this.scene.add(doorGroup);
+
+          this.safeRoomDoors.push({
+            position: new THREE.Vector3(doorX, 0, doorZ),
+            room: room
+          });
         }
       }
     }
