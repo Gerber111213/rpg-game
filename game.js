@@ -17,13 +17,16 @@ class Carl extends Phaser.Physics.Arcade.Sprite {
     scene.add.existing(this);
     scene.physics.add.existing(this);
     this.setCollideWorldBounds(true);
-    this.body.setSize(20, 10); 
-    this.body.setOffset(6, 50);
+    
+    // Adjusted body size for 48x48 grid
+    this.body.setSize(20, 16); 
+    this.body.setOffset(14, 30);
 
     this.hp = 100;
     this.speed = 180;
     this.currentDirection = 'south';
   }
+  // ... rest of Carl class
 
   moveToTarget(targetX, targetY) {
     const dist = Phaser.Math.Distance.Between(this.x, this.y, targetX, targetY);
@@ -166,23 +169,25 @@ class DungeonScene extends Phaser.Scene {
     super({ key: 'DungeonScene' });
   }
 
-  preload() {
-    this.load.spritesheet('carl_walk', 'assets/carl_walk.png', { frameWidth: 32, frameHeight: 64 });
-    this.load.spritesheet('donut_walk', 'assets/donut_walk.png', { frameWidth: 24, frameHeight: 24 });
+preload() {
+    // If your spritesheet uses 48x48 frames, change frameWidth and frameHeight below:
+    this.load.spritesheet('carl_walk', 'assets/carl_walk.png', { frameWidth: 48, frameHeight: 48 });
+    this.load.spritesheet('donut_walk', 'assets/donut_walk.png', { frameWidth: 48, frameHeight: 48 });
 
+    // Procedural Floor, Wall, and Placeholder Textures...
     const g = this.make.graphics({ x: 0, y: 0, add: false });
     
-    // Spooky Dungeon Floor
+    // Spooky Dungeon Floor Texture
     g.fillStyle(0x15141c, 1); g.fillRect(0, 0, 48, 48);
     g.lineStyle(1, 0x08070a, 1); g.beginPath(); g.moveTo(10, 0); g.lineTo(18, 22); g.lineTo(38, 44); g.strokePath();
     g.generateTexture('floor', 48, 48); g.clear();
     
-    // Dungeon Wall
+    // Dungeon Wall Texture
     g.fillStyle(0x282633, 1); g.fillRect(0, 0, 48, 48);
     g.lineStyle(2, 0x14131a, 1); g.strokeRect(0, 0, 48, 48);
     g.generateTexture('wall', 48, 48); g.clear();
     
-    // Entity Placeholders
+    // Entity shapes
     g.fillStyle(0x44cc44, 1); g.fillRect(0, 0, 24, 24); g.generateTexture('goblin', 24, 24); g.clear();
     g.fillStyle(0x8b5a2b, 1); g.fillRect(0, 0, 28, 28); g.generateTexture('mordecai', 28, 28); g.clear();
     g.fillStyle(0x00e5ff, 1); g.fillCircle(6, 6, 6); g.generateTexture('missile', 12, 12); g.clear();
