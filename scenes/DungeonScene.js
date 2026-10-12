@@ -60,6 +60,7 @@ export class DungeonScene extends Phaser.Scene {
     this.dungeonGrid = Array.from({ length: this.mapRows }, () => Array(this.mapCols).fill(null));
     const rooms = this.generateMassiveRoomsAndCorridors();
 
+    // Register all solid walls in physics
     for (let r = 0; r < this.mapRows; r++) {
       for (let c = 0; c < this.mapCols; c++) {
         if (this.dungeonGrid[r][c].type === 0) {
@@ -78,9 +79,10 @@ export class DungeonScene extends Phaser.Scene {
     this.donut = new Donut(this, spawnX - 30, spawnY);
     this.mordecai = new Mordecai(this, spawnX + 40, spawnY);
 
+    // Populate Goblins across rooms
     for (let i = 1; i < rooms.length; i++) {
       const room = rooms[i];
-      if (Math.random() > 0.3) {
+      if (Math.random() > 0.25) {
         const gx = (room.x + Math.floor(room.w / 2)) * this.tileSize;
         const gy = (room.y + Math.floor(room.h / 2)) * this.tileSize;
         const goblin = new Enemy(this, gx, gy, 'goblin', `Floor 1 Goblin Scavenger #${i}`, 30, 5);
@@ -106,8 +108,8 @@ export class DungeonScene extends Phaser.Scene {
     this.lastCarlTileX = -999;
     this.lastCarlTileY = -999;
 
-    logMessage(`[SYSTEM ANNOUNCEMENT]: Welcome, Crawlers, to Floor 1 of the Crawler World Dungeon!`, 'sys-msg');
-    logMessage(`[SYNDICATE AI]: Crawler Carl detected. Current footwear: NONE. Barefoot penalty active!`, 'sys-msg');
+    logMessage(`[SYSTEM ANNOUNCEMENT]: Welcome to Floor 1 Sprawling Labyrinth!`, 'sys-msg');
+    logMessage(`[SYNDICATE AI]: Crawler Carl detected. Barefoot penalty active.`, 'sys-msg');
 
     this.input.on('pointerdown', (pointer) => {
       if (pointer.rightButtonDown() || pointer.button === 2) {
@@ -121,6 +123,7 @@ export class DungeonScene extends Phaser.Scene {
   }
 
   generateMassiveRoomsAndCorridors() {
+    // Fill with walls initially
     for (let r = 0; r < this.mapRows; r++) {
       for (let c = 0; c < this.mapCols; c++) {
         const wallTex = Phaser.Utils.Array.GetRandom(this.wallVariants);
@@ -129,25 +132,25 @@ export class DungeonScene extends Phaser.Scene {
     }
 
     const rooms = [];
-    const minSize = 6;
-    const maxSize = 14;
-    const targetRooms = 80;
+    const minSize = 8;
+    const maxSize = 18;
+    const targetRooms = 120; // Sprawling layout across the 250x250 grid
 
     for (let i = 0; i < targetRooms; i++) {
       const w = Phaser.Math.Between(minSize, maxSize);
       const h = Phaser.Math.Between(minSize, maxSize);
-      const x = Phaser.Math.Between(3, this.mapCols - w - 3);
-      const y = Phaser.Math.Between(3, this.mapRows - h - 3);
+      const x = Phaser.Math.Between(5, this.mapCols - w - 5);
+      const y = Phaser.Math.Between(5, this.mapRows - h - 5);
 
       const newRoom = { x, y, w, h };
       let overlaps = false;
 
       for (let existing of rooms) {
         if (
-          newRoom.x < existing.x + existing.w + 3 &&
-          newRoom.x + newRoom.w + 3 > existing.x &&
-          newRoom.y < existing.y + existing.h + 3 &&
-          newRoom.y + newRoom.h + 3 > existing.y
+          newRoom.x < existing.x + existing.w + 4 &&
+          newRoom.x + newRoom.w + 4 > existing.x &&
+          newRoom.y < existing.y + existing.h + 4 &&
+          newRoom.y + newRoom.h + 4 > existing.y
         ) {
           overlaps = true;
           break;
@@ -187,8 +190,10 @@ export class DungeonScene extends Phaser.Scene {
     for (let x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) {
       const floorTex1 = Phaser.Utils.Array.GetRandom(this.floorVariants);
       const floorTex2 = Phaser.Utils.Array.GetRandom(this.floorVariants);
-      this.dungeonGrid[y][x] = { type: 1, texture: floorTex1 };
-      this.dungeonGrid[y + 1][x] = { type: 1, texture: floorTex2 };
+      if (y > 0 && y < this.mapRows) {
+        this.dungeonGrid[y][x] = { type: 1, texture: floorTex1 };
+        this.dungeonGrid[y + 1][x] = { type: 1, texture: floorTex2 };
+      }
     }
   }
 
@@ -196,11 +201,14 @@ export class DungeonScene extends Phaser.Scene {
     for (let y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) {
       const floorTex1 = Phaser.Utils.Array.GetRandom(this.floorVariants);
       const floorTex2 = Phaser.Utils.Array.GetRandom(this.floorVariants);
-      this.dungeonGrid[y][x] = { type: 1, texture: floorTex1 };
-      this.dungeonGrid[y][x + 1] = { type: 1, texture: floorTex2 };
+      if (x > 0 && x < this.mapCols) {
+        this.dungeonGrid[y][x] = { type: 1, texture: floorTex1 };
+        this.dungeonGrid[y][x + 1] = { type: 1, texture: floorTex2 };
+      }
     }
   }
 
+  // --- VISION & LINE OF SIGHT (18 Tiles Range, Blocked by Walls) ---
   updateVisionAndTiles() {
     const carlTileX = Math.floor(this.carl.x / this.tileSize);
     const carlTileY = Math.floor(this.carl.y / this.tileSize);
@@ -209,7 +217,7 @@ export class DungeonScene extends Phaser.Scene {
     this.lastCarlTileX = carlTileX;
     this.lastCarlTileY = carlTileY;
 
-    const sightRange = 6;
+    const sightRange = 18; // Expanded to 18 tiles view distance
     const visibleKeys = new Set();
 
     for (let ty = carlTileY - sightRange - 2; ty <= carlTileY + sightRange + 2; ty++) {
@@ -259,6 +267,7 @@ export class DungeonScene extends Phaser.Scene {
     while (true) {
       if (cx === x1 && cy === y1) return true;
 
+      // Walls block line of sight
       if ((cx !== x0 || cy !== y0) && this.dungeonGrid[cy][cx].type === 0) {
         if (cx === x1 && cy === y1) return true;
         return false;
@@ -298,8 +307,8 @@ export class DungeonScene extends Phaser.Scene {
     if (this.announcementTimer === 600) {
       const chatter = [
         `[GALACTIC CHAT]: Viewer 'Zylox_9' tipped 500 coin: "Go Carl! Show those goblins what a barefoot human can do!"`,
-        `[SYNDICATE AI]: Reminder to all viewers: Betting closes on Crawler Carl's foot durability in 10 minutes.`,
-        `DONUT: "Carl, if you don't find me a velvet cushion to sit on in the next five minutes, I am going to fire you."`
+        `[SYNDICATE AI]: Reminder: Betting closes on Crawler Carl's foot durability in 10 minutes.`,
+        `DONUT: "Carl, if you don't find me a velvet cushion soon, I am firing you."`
       ];
       logMessage(Phaser.Utils.Array.GetRandom(chatter), 'sys-msg');
       this.announcementTimer = 0;
@@ -308,7 +317,7 @@ export class DungeonScene extends Phaser.Scene {
     if (this.donutCooldown <= 0) {
       this.enemies.getChildren().forEach(enemy => {
         const range = Phaser.Math.Distance.Between(this.donut.x, this.donut.y, enemy.x, enemy.y);
-        if (range <= 220) {
+        if (range <= 280) {
           const missile = this.projectiles.create(this.donut.x, this.donut.y, 'missile');
           this.physics.moveToObject(missile, enemy, 350);
           this.donutCooldown = 120;
