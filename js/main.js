@@ -25,10 +25,9 @@ class Game3D {
   constructor() {
     this.container = document.getElementById('game-container');
     
-    // Scene setup with dark dungeon atmosphere and fog
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x060609);
-    this.scene.fog = new THREE.FogExp2(0x060609, 0.035); // Atmospheric dark fog
+    this.scene.fog = new THREE.FogExp2(0x060609, 0.035);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -37,11 +36,9 @@ class Game3D {
     this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
     this.cameraOffset = new THREE.Vector3(0, 30, 22);
 
-    // Dim ambient light so the dungeon feels dark and foreboding
     const ambientLight = new THREE.AmbientLight(0x222233, 0.4);
     this.scene.add(ambientLight);
 
-    // Subtle overhead directional light
     const dirLight = new THREE.DirectionalLight(0x444466, 0.3);
     dirLight.position.set(20, 40, 20);
     this.scene.add(dirLight);
@@ -63,25 +60,22 @@ class Game3D {
     this.donut = new Donut3D(this.scene, spawnX - 2, spawnZ);
     this.mordecai = new Mordecai3D(this.scene, spawnX + 3, spawnZ);
 
-    // Carl's personal torch light remains warm and bright around him
     this.carlLight = new THREE.PointLight(0xff8833, 3.2, 16);
     this.carlLight.position.set(spawnX, 2.0, spawnZ);
     this.scene.add(this.carlLight);
 
     this.monsters = [];
-    this.projectiles = [];
-    this.donutCooldown = 0;
-
     this.spawnMonsters();
 
     this.targetPos = this.carl.getPosition().clone();
+    this.isMouseDown = false;
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
 
     this.setupInputs();
     this.clock = new THREE.Clock();
 
-    logMessage(`[SYSTEM AI]: Floor 1 darkened. Crawler Carl, watch your step in the shadows!`, 'sys-msg');
+    logMessage(`[SYSTEM AI]: Floor 1 initialized. Find the glowing stairwell at the end of the labyrinth!`, 'sys-msg');
 
     this.animate();
   }
@@ -92,23 +86,41 @@ class Game3D {
       const mx = r.x * 4 + (r.w * 2);
       const mz = r.y * 4 + (r.h * 2);
       const type = Math.random() > 0.5 ? 'Rage Ibis' : 'Goblin Scavenger';
-      this.monsters.push(new Monster3D(this.scene, type, mx, mz));
+      this.monsters.push(new Monster3D(this.scene, type, mx, mz, this.mapData.grid));
     }
   }
 
   setupInputs() {
+    // Click and Hold Steering
+    window.addEventListener('mousedown', (e) => {
+      if (e.button === 0) { // Left click
+        this.isMouseDown = true;
+        this.updateTargetFromMouse(e);
+      }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (this.isMouseDown) {
+        this.updateTargetFromMouse(e);
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      this.isMouseDown = false;
+    });
+
     window.addEventListener('click', (e) => {
       this.hideContextMenu();
       this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
       this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
       this.raycaster.setFromCamera(this.mouse, this.camera);
       
-      const monsterMeshes = this.monsters.map(m => m.mesh);
+      const monsterMeshes = this.monsters.map(m => m.torso);
       const hitMonsters = this.raycaster.intersectObjects(monsterMeshes);
       
       if (hitMonsters.length > 0) {
         const clickedMesh = hitMonsters[0].object;
-        const targetMonster = this.monsters.find(m => m.mesh === clickedMesh);
+        const targetMonster = this.monsters.find(m => m.torso === clickedMesh || m.group.children.includes(clickedMesh));
         if (targetMonster && !targetMonster.isDead) {
           const defeated = targetMonster.takeDamage(20);
           logMessage(`CARL strikes ${targetMonster.name} for 20 damage!`, 'combat-msg');
@@ -116,14 +128,7 @@ class Game3D {
             this.combat.handleCorpseCollapse(targetMonster);
             logMessage(`${targetMonster.name} was obliterated! Corpse ready for looting.`, 'sys-msg');
           }
-          return;
         }
-      }
-
-      const intersects = this.raycaster.intersectObjects(this.scene.children, true);
-      if (intersects.length > 0) {
-        this.targetPos.copy(intersects[0].point);
-        this.targetPos.y = 0;
       }
     });
 
@@ -133,12 +138,12 @@ class Game3D {
       this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
       this.raycaster.setFromCamera(this.mouse, this.camera);
 
-      const monsterMeshes = this.monsters.map(m => m.mesh);
+      const monsterMeshes = this.monsters.map(m => m.torso);
       const hitMonsters = this.raycaster.intersectObjects(monsterMeshes);
 
       if (hitMonsters.length > 0) {
         const clickedMesh = hitMonsters[0].object;
-        const targetMonster = this.monsters.find(m => m.mesh === clickedMesh);
+        const targetMonster = this.monsters.find(m => m.torso === clickedMesh || m.group.children.includes(clickedMesh));
         
         if (targetMonster && targetMonster.isDead) {
           this.showContextMenu(e.clientX, e.clientY, [
@@ -162,6 +167,17 @@ class Game3D {
         if (modal) modal.classList.toggle('hidden');
       }
     });
+  }
+
+  updateTargetFromMouse(e) {
+    this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+    this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+    const intersects = this.raycaster.intersectObjects(this.scene.children, true);
+    if (intersects.length > 0) {
+      this.targetPos.copy(intersects[0].point);
+      this.targetPos.y = 0;
+    }
   }
 
   showContextMenu(x, y, options) {
@@ -198,6 +214,15 @@ class Game3D {
 
     const carlPos = this.carl.getPosition();
     this.carlLight.position.set(carlPos.x, carlPos.y + 2.0, carlPos.z);
+
+    // Check if Carl reached the stairwell goal
+    if (this.mapData.stairwell && carlPos.distanceTo(this.mapData.stairwell) < 2.5) {
+      logMessage(`[CONGRATULATIONS]: Crawler Carl and Princess Donut have reached the Level 1 Stairwell! Floor cleared!`, 'sys-msg');
+      // Reset position to spawn to loop next floor
+      const spawnRoom = this.mapData.rooms[0];
+      carlPos.set(spawnRoom.x * 4 + (spawnRoom.w * 2), 0, spawnRoom.y * 4 + (spawnRoom.h * 2));
+      this.targetPos.copy(carlPos);
+    }
 
     this.camera.position.copy(carlPos).add(this.cameraOffset);
     this.camera.lookAt(carlPos.x, carlPos.y + 1, carlPos.z);
