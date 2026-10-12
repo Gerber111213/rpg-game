@@ -1,9 +1,10 @@
 body {
   margin: 0;
   padding: 0;
-  background-color: #050508;
+  background-color: #060609;
+  color: #f0f0f5;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   overflow: hidden;
-  font-family: 'Courier New', Courier, monospace;
   user-select: none;
 }
 
@@ -13,161 +14,121 @@ body {
   display: block;
 }
 
-/* --- HUD Overlay --- */
-#hud {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
-#health-bar-container {
-  position: absolute;
-  bottom: 25px;
-  left: 25px;
-  width: 280px;
-  height: 24px;
-  background: #111;
-  border: 2px solid #555;
-  border-radius: 4px;
-  overflow: hidden;
-  pointer-events: auto;
-}
-
-.hp-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #990000, #ff2222);
-  transition: width 0.2s ease;
-}
-
-#hp-text {
-  position: absolute;
-  top: 3px;
-  left: 0;
-  width: 100%;
-  text-align: center;
-  font-size: 13px;
-  color: #fff;
-  font-weight: bold;
-  text-shadow: 1px 1px 2px #000;
-}
-
+/* --- UI HUD / LOG BOX --- */
 #log-box {
   position: absolute;
-  top: 15px;
-  right: 15px;
-  width: 380px;
-  height: 240px;
-  background: rgba(8, 8, 12, 0.9);
-  border: 2px solid #3d3566;
-  border-radius: 4px;
-  padding: 10px;
-  box-sizing: border-box;
+  bottom: 20px;
+  left: 20px;
+  width: 420px;
+  height: 160px;
+  background: rgba(10, 10, 15, 0.85);
+  border: 1px solid #333344;
+  border-radius: 6px;
+  padding: 12px;
   overflow-y: auto;
-  pointer-events: auto;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.9);
+  font-family: monospace;
+  font-size: 13px;
+  z-index: 5;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
 }
 
 #log-box p {
   margin: 0 0 6px 0;
-  font-size: 12px;
   line-height: 1.4;
-  color: #b8b6cc;
 }
 
-#log-box p.sys-msg { color: #00e5ff; }
-#log-box p.donut-msg { color: #ff88cc; }
-#log-box p.combat-msg { color: #ff4444; }
+#log-box p.sys-msg {
+  color: #00ffff;
+}
 
-/* --- Inventory Window --- */
+#log-box p.combat-msg {
+  color: #ffaa33;
+}
+
+/* --- CONTEXT MENU --- */
+#context-menu {
+  position: absolute;
+  background: #1a1a24;
+  border: 1px solid #444455;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  z-index: 100;
+  min-width: 160px;
+}
+
+#context-menu.hidden {
+  display: none;
+}
+
+#context-options {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0;
+}
+
+#context-options li {
+  padding: 8px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #e0e0e0;
+}
+
+#context-options li:hover {
+  background: #2a2a3b;
+  color: #ffffff;
+}
+
+/* --- INVENTORY MODAL --- */
 #inventory-modal {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  display: flex;
-  gap: 20px;
-  background: rgba(12, 10, 18, 0.95);
-  border: 2px solid #8b0000;
-  padding: 20px;
+  width: 400px;
+  height: 300px;
+  background: rgba(18, 18, 26, 0.95);
+  border: 2px solid #555570;
   border-radius: 8px;
-  box-shadow: 0 0 30px #000;
-  z-index: 2000;
+  padding: 20px;
+  z-index: 50;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.8);
 }
 
-#inventory-modal.hidden { display: none; }
-
-.inventory-window {
-  width: 280px;
-  color: #ddd;
+#inventory-modal.hidden {
+  display: none;
 }
 
-.inventory-window h2 {
-  font-size: 14px;
-  margin-top: 0;
-  border-bottom: 1px solid #444;
-  padding-bottom: 6px;
-  color: #ffcc00;
-}
-
-.equipment-slots .slot {
-  background: #1a1824;
-  border: 1px dashed #555;
-  margin: 6px 0;
-  padding: 8px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.bag-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
-  margin-top: 10px;
-}
-
-.bag-slot {
-  width: 50px;
-  height: 50px;
-  background: #111;
-  border: 1px solid #333;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  cursor: pointer;
-}
-
-/* --- Context Menu --- */
-#context-menu {
+/* --- MONSTER FLOATING NAME / HEALTH TAGS --- */
+.monster-tag {
   position: absolute;
-  background: #15141c;
-  border: 1px solid #4a4470;
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.8);
-  z-index: 3000;
-  padding: 4px 0;
-  min-width: 170px;
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+  text-align: center;
+  font-family: monospace;
+  z-index: 10;
 }
 
-#context-menu.hidden { display: none; }
-
-#context-options {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.m-name {
+  color: #ff4444;
+  font-size: 11px;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px #000;
+  margin-bottom: 2px;
 }
 
-#context-options li {
-  padding: 8px 14px;
-  font-size: 12px;
-  color: #e0def4;
-  cursor: pointer;
+.m-hp-bar {
+  width: 50px;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid #555;
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 0 auto;
 }
 
-#context-options li:hover {
-  background: #2d2a3d;
-  color: #00e5ff;
+.m-hp-fill {
+  width: 100%;
+  height: 100%;
+  background: #2ecc71;
+  transition: width 0.2s ease;
 }
