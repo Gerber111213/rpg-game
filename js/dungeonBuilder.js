@@ -40,7 +40,6 @@ export class DungeonBuilder {
       }
 
       if (!overlap) {
-        // Room 0 is always the main Safe Room spawn point
         const isSafe = (i === 0 || i % 7 === 0); 
         for (let rx = x; rx < x + w; rx++) {
           for (let ry = y; ry < y + h; ry++) {
@@ -112,13 +111,53 @@ export class DungeonBuilder {
     this.scene.add(stairGroup);
   }
 
+  createStoneBumpMap() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+
+    // Base mortar grout
+    ctx.fillStyle = '#444444';
+    ctx.fillRect(0, 0, 256, 256);
+
+    // Stone blocks
+    ctx.fillStyle = '#cccccc';
+    const rows = 8;
+    const cols = 4;
+    const rh = 256 / rows;
+    const cw = 256 / cols;
+
+    for (let r = 0; r < rows; r++) {
+      const offset = (r % 2) * (cw / 2);
+      for (let c = -1; c < cols + 1; c++) {
+        ctx.fillRect(c * cw + offset + 2, r * rh + 2, cw - 4, rh - 4);
+      }
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(1, 2);
+    return texture;
+  }
+
   render3DWorld() {
     const floorGeo = new THREE.BoxGeometry(this.tileSize, 0.4, this.tileSize);
     const wallGeo = new THREE.BoxGeometry(this.tileSize, 5.0, this.tileSize);
 
     const floorMat = new THREE.MeshLambertMaterial({ color: 0x4a3b32 });
     const safeFloorMat = new THREE.MeshLambertMaterial({ color: 0x2b4c66 });
-    const wallMat = new THREE.MeshLambertMaterial({ color: 0x6e6875 });
+
+    // Procedural 3D Stone Brick Relief Texture using MeshStandardMaterial + BumpMap
+    const stoneBump = this.createStoneBumpMap();
+    const wallMat = new THREE.MeshStandardMaterial({ 
+      color: 0x6e6875,
+      roughness: 0.8,
+      metalness: 0.2,
+      bumpMap: stoneBump,
+      bumpScale: 0.25 // Creates tactile 3D brick depth reacting to torch light
+    });
 
     for (let r = 0; r < this.gridRows; r++) {
       for (let c = 0; c < this.gridCols; c++) {
@@ -142,20 +181,18 @@ export class DungeonBuilder {
       }
     }
 
-    // Build Heavy Security Doors for Safe Rooms
     this.buildSafeRoomDoors();
   }
 
   buildSafeRoomDoors() {
-    const doorMat = new THREE.MeshLambertMaterial({ color: 0x2c3e50 }); // Steel Blast Door
-    const frameMat = new THREE.MeshLambertMaterial({ color: 0x7f8c8d }); // Reinforced Frame
-    const lightMat = new THREE.MeshBasicMaterial({ color: 0x2ecc71 });  // Safe Room Green Beacon
+    const doorMat = new THREE.MeshLambertMaterial({ color: 0x2c3e50 });
+    const frameMat = new THREE.MeshLambertMaterial({ color: 0x7f8c8d });
+    const lightMat = new THREE.MeshBasicMaterial({ color: 0x2ecc71 });
 
     for (let room of this.rooms) {
       if (room.isSafe) {
-        // Find an entry point on the perimeter of the safe room
         const doorCol = room.x + Math.floor(room.w / 2);
-        const doorRow = room.y - 1; // Just outside the top wall
+        const doorRow = room.y - 1;
 
         if (doorRow >= 0 && this.grid[doorRow][doorCol] === 1) {
           const doorX = doorCol * this.tileSize;
@@ -163,19 +200,16 @@ export class DungeonBuilder {
 
           const doorGroup = new THREE.Group();
 
-          // Door Frame
           const frameGeo = new THREE.BoxGeometry(this.tileSize, 4.5, 0.6);
           const frame = new THREE.Mesh(frameGeo, frameMat);
           frame.position.set(0, 2.25, 0);
           doorGroup.add(frame);
 
-          // Sliding Blast Door Panel (with offset so it looks like an airtight seal)
           const panelGeo = new THREE.BoxGeometry(this.tileSize - 0.4, 4.0, 0.4);
           const panel = new THREE.Mesh(panelGeo, doorMat);
           panel.position.set(0, 2.0, 0);
           doorGroup.add(panel);
 
-          // Green Safe Room Status Light
           const beaconGeo = new THREE.SphereGeometry(0.2, 8, 8);
           const beacon = new THREE.Mesh(beaconGeo, lightMat);
           beacon.position.set(0, 4.0, 0.3);
