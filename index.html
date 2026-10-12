@@ -3,13 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dungeon Crawler Carl - Phaser Engine</title>
-  <!-- Phaser 3 Engine CDN -->
+  <title>Dungeon Crawler Carl - Modular Build</title>
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- Floating RuneScape Style HUD Overlay -->
+  <!-- UI Overlay -->
   <div id="ui-overlay">
     <div class="hud-header">SYSTEM AI STATUS</div>
     <div class="hud-body">
@@ -17,27 +16,28 @@
         <h4>Crawler: Carl</h4>
         <p>HP: <span id="hp">100</span>/100</p>
         <p>Footwear: <span class="highlight-danger">NONE (Barefoot)</span></p>
-        <p>Attire: <span class="highlight-pink">Heart Boxers</span></p>
       </div>
       <hr>
       <div class="stat-group">
         <h4>Companion: Donut</h4>
-        <p>Breed: Grand Champion Persian</p>
         <p>Spell: <span class="highlight-magic">Magic Missile</span></p>
       </div>
       <hr>
       <div id="log-box">
-        <p class="sys-msg">[SYSTEM AI]: Phaser 3 Engine Loaded. Floor 1 active.</p>
+        <p class="sys-msg">[SYSTEM AI]: Floor 1 initialized. Modular scripts active.</p>
       </div>
     </div>
   </div>
 
-  <!-- Custom Right-Click Context Menu -->
+  <!-- Context Menu -->
   <div id="context-menu" class="hidden">
     <div id="context-header">Action Menu</div>
     <ul id="context-options"></ul>
   </div>
 
-  <script src="game.js"></script>
+  <!-- Load Modules in Order -->
+  <script src="src/Enemy.js"></script>
+  <script src="src/Mordecai.js"></script>
+  <script src="src/DungeonScene.js"></script>
 </body>
 </html>
