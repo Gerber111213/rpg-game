@@ -1,24 +1,23 @@
 export class DungeonBuilder {
   constructor(scene) {
     this.scene = scene;
-    this.tileSize = 4; // 3D scale per grid block
+    this.tileSize = 4;
     this.gridCols = 100;
     this.gridRows = 100;
     this.grid = Array.from({ length: this.gridRows }, () => Array(this.gridCols).fill(0));
     this.rooms = [];
-    this.safeRooms = [];
+    this.torches = [];
   }
 
   build() {
     this.generateRoomsAndCorridors();
-    this.createMaterials();
+    this.createHighDetailTextures();
     this.render3DWorld();
-    return { grid: this.grid, rooms: this.rooms, safeRooms: this.safeRooms };
+    return { grid: this.grid, rooms: this.rooms };
   }
 
   generateRoomsAndCorridors() {
     const minSize = 6, maxSize = 14, targetRooms = 30;
-
     for (let i = 0; i < targetRooms; i++) {
       const w = Math.floor(Math.random() * (maxSize - minSize)) + minSize;
       const h = Math.floor(Math.random() * (maxSize - minSize)) + minSize;
@@ -34,17 +33,15 @@ export class DungeonBuilder {
       }
 
       if (!overlap) {
-        const isSafe = (i === 0); // First room is designated Safe Room
+        const isSafe = (i === 0);
         for (let rx = x; rx < x + w; rx++) {
           for (let ry = y; ry < y + h; ry++) {
-            this.grid[ry][rx] = isSafe ? 2 : 1; // 1 = Normal Floor, 2 = Safe Room Floor
+            this.grid[ry][rx] = isSafe ? 2 : 1;
           }
         }
         const roomObj = { x, y, w, h, isSafe };
         this.rooms.push(roomObj);
-        if (isSafe) this.safeRooms.push(roomObj);
 
-        // Connect corridors
         if (this.rooms.length > 1) {
           const prev = this.rooms[this.rooms.length - 2];
           this.carveCorridor(Math.floor(prev.x + prev.w/2), Math.floor(x + w/2), Math.floor(prev.y + prev.h/2), Math.floor(y + h/2));
@@ -58,12 +55,60 @@ export class DungeonBuilder {
     for (let y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) { this.grid[y][x2] = 1; this.grid[y][x2+1] = 1; }
   }
 
-  createMaterials() {
-    // Dirt/Rock Floor Material
-    this.floorMat = new THREE.MeshStandardMaterial({ color: 0x3b2d23, roughness: 0.9, metalness: 0.1 });
-    this.safeFloorMat = new THREE.MeshStandardMaterial({ color: 0x223344, roughness: 0.5, metalness: 0.3 });
-    // Concrete/Manufactured Brick Wall Material
-    this.wallMat = new THREE.MeshStandardMaterial({ color: 0x555259, roughness: 0.7, metalness: 0.2 });
+  // --- PROCEDURAL HIGH-DETAIL CANVAS TEXTURES ---
+  createHighDetailTextures() {
+    this.floorMaterials = [];
+    this.wallMaterials = [];
+
+    // Generate 4 randomized high-res floor textures (dirt, rock, cracked slate)
+    for (let i = 0; i < 4; i++) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512; canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+      
+      ctx.fillStyle = i === 0 ? '#2b221e' : (i === 1 ? '#1f2421' : '#26222b');
+      ctx.fillRect(0, 0, 512, 512);
+
+      // Add high-detail noise & speckles
+      for (let p = 0; p < 3000; p++) {
+        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.08)';
+        ctx.fillRect(Math.random() * 512, Math.random() * 512, Math.random() * 6 + 2, Math.random() * 6 + 2);
+      }
+
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      this.floorMaterials.push(new THREE.MeshStandardMaterial({ map: texture, roughness: 0.85, metalness: 0.1 }));
+    }
+
+    // Generate 4 randomized manufactured stone/brick wall textures
+    for (let i = 0; i < 4; i++) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512; canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+
+      ctx.fillStyle = '#3d3a42';
+      ctx.fillRect(0, 0, 512, 512);
+
+      // Brick mortar lines
+      ctx.strokeStyle = '#1a181c';
+      ctx.lineWidth = 6;
+      for (let y = 0; y < 512; y += 64) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(512, y); ctx.stroke();
+      }
+      for (let x = 0; x < 512; x += 128) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 512); ctx.stroke();
+      }
+
+      // Grit & weathering
+      for (let p = 0; p < 2000; p++) {
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.fillRect(Math.random() * 512, Math.random() * 512, 4, 4);
+      }
+
+      const texture = new THREE.CanvasTexture(canvas);
+      this.wallMaterials.push(new THREE.MeshStandardMaterial({ map: texture, roughness: 0.7, metalness: 0.2 }));
+    }
   }
 
   render3DWorld() {
@@ -76,21 +121,44 @@ export class DungeonBuilder {
         const posZ = r * this.tileSize;
 
         if (this.grid[r][c] > 0) {
-          // Render Floor
-          const mat = this.grid[r][c] === 2 ? this.safeFloorMat : this.floorMat;
+          const mat = this.floorMaterials[Math.floor(Math.random() * this.floorMaterials.length)];
           const floor = new THREE.Mesh(floorGeo, mat);
           floor.position.set(posX, -0.2, posZ);
           floor.receiveShadow = true;
           this.scene.add(floor);
         } else {
-          // Render Manufactured Wall
-          const wall = new THREE.Mesh(wallGeo, this.wallMat);
+          const mat = this.wallMaterials[Math.floor(Math.random() * this.wallMaterials.length)];
+          const wall = new THREE.Mesh(wallGeo, mat);
           wall.position.set(posX, 2.5, posZ);
           wall.castShadow = true;
           wall.receiveShadow = true;
           this.scene.add(wall);
+
+          // Sporadic Wall Torches
+          if (Math.random() < 0.08) {
+            this.addTorch(posX, 2.0, posZ);
+          }
         }
       }
     }
+  }
+
+  addTorch(x, y, z) {
+    const bracketGeo = new THREE.BoxGeometry(0.2, 0.2, 0.4);
+    const bracketMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+    const bracket = new THREE.Mesh(bracketGeo, bracketMat);
+    bracket.position.set(x, y, z);
+    this.scene.add(bracket);
+
+    const flameGeo = new THREE.SphereGeometry(0.2, 8, 8);
+    const flameMat = new THREE.MeshBasicMaterial({ color: 0xff6600 });
+    const flame = new THREE.Mesh(flameGeo, flameMat);
+    flame.position.set(x, y + 0.3, z);
+    this.scene.add(flame);
+
+    const light = new THREE.PointLight(0xff7722, 2.0, 12);
+    light.position.set(x, y + 0.3, z);
+    this.scene.add(light);
+    this.torches.push(light);
   }
 }
