@@ -25,24 +25,24 @@ class Game3D {
   constructor() {
     this.container = document.getElementById('game-container');
     
+    // Scene setup with high-visibility background and lighting
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x050508);
-    this.scene.fog = new THREE.FogExp2(0x050508, 0.025);
+    this.scene.background = new THREE.Color(0x111118);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.shadowMap.enabled = true;
     this.container.appendChild(this.renderer.domElement);
 
     this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-    this.cameraOffset = new THREE.Vector3(0, 24, 18);
+    this.cameraOffset = new THREE.Vector3(0, 30, 22);
 
-    const ambientLight = new THREE.AmbientLight(0x333344, 1.5);
+    // High ambient and directional light guarantees no black screens
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
     this.scene.add(ambientLight);
 
-    this.playerLight = new THREE.PointLight(0xffaa55, 3.5, 35);
-    this.playerLight.castShadow = true;
-    this.scene.add(this.playerLight);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(20, 40, 20);
+    this.scene.add(dirLight);
 
     this.audio = new AudioManager();
     this.audio.attachToCamera(this.camera);
@@ -74,7 +74,7 @@ class Game3D {
     this.setupInputs();
     this.clock = new THREE.Clock();
 
-    logMessage(`[SYSTEM AI]: Floor 1 initialized with persistent monster corpses and loot system.`, 'sys-msg');
+    logMessage(`[SYSTEM AI]: Floor 1 initialized with full 3D walls, floors, and safe rooms!`, 'sys-msg');
 
     this.animate();
   }
@@ -90,7 +90,6 @@ class Game3D {
   }
 
   setupInputs() {
-    // Left click to move or attack
     window.addEventListener('click', (e) => {
       this.hideContextMenu();
       this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
@@ -121,7 +120,6 @@ class Game3D {
       }
     });
 
-    // Right click for context menu (Looting corpses)
     window.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
@@ -153,7 +151,8 @@ class Game3D {
 
     window.addEventListener('keydown', (e) => {
       if (e.key === 'i' || e.key === 'I') {
-        document.getElementById('inventory-modal').classList.toggle('hidden');
+        const modal = document.getElementById('inventory-modal');
+        if (modal) modal.classList.toggle('hidden');
       }
     });
   }
@@ -191,7 +190,6 @@ class Game3D {
     }
 
     const carlPos = this.carl.getPosition();
-    this.playerLight.position.set(carlPos.x, carlPos.y + 3, carlPos.z);
     this.camera.position.copy(carlPos).add(this.cameraOffset);
     this.camera.lookAt(carlPos.x, carlPos.y + 1, carlPos.z);
 
