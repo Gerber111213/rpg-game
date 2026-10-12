@@ -36,10 +36,10 @@ class Game3D {
     this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
     this.cameraOffset = new THREE.Vector3(0, 30, 22);
 
-    const ambientLight = new THREE.AmbientLight(0x222233, 0.4);
+    const ambientLight = new THREE.AmbientLight(0x222233, 0.3);
     this.scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0x444466, 0.3);
+    const dirLight = new THREE.DirectionalLight(0x444466, 0.2);
     dirLight.position.set(20, 40, 20);
     this.scene.add(dirLight);
 
@@ -60,7 +60,8 @@ class Game3D {
     this.donut = new Donut3D(this.scene, spawnX - 2, spawnZ);
     this.mordecai = new Mordecai3D(this.scene, spawnX + 3, spawnZ);
 
-    this.carlLight = new THREE.PointLight(0xff8833, 3.2, 16);
+    // --- TWICE AS BRIGHT AND LARGE TORCH LIGHT ---
+    this.carlLight = new THREE.PointLight(0xff9944, 6.4, 28);
     this.carlLight.position.set(spawnX, 2.0, spawnZ);
     this.scene.add(this.carlLight);
 
@@ -69,14 +70,14 @@ class Game3D {
 
     this.targetPos = this.carl.getPosition().clone();
     this.isMouseDown = false;
-    this.inSafeRoom = true; // Started in Safe Room 0
+    this.inSafeRoom = true;
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
 
     this.setupInputs();
     this.clock = new THREE.Clock();
 
-    logMessage(`[SYSTEM AI]: Safe Room entry sealed. Welcome, Crawler Carl. Your sponsor items are available.`, 'sys-msg');
+    logMessage(`[SYSTEM AI]: Torch intensity increased. Explore the deeper shadows, Crawler.`, 'sys-msg');
 
     this.animate();
   }
@@ -215,21 +216,19 @@ class Game3D {
     const carlPos = this.carl.getPosition();
     this.carlLight.position.set(carlPos.x, carlPos.y + 2.0, carlPos.z);
 
-    // Check Safe Room Door Proximity
     if (this.mapData.safeRoomDoors) {
       for (let door of this.mapData.safeRoomDoors) {
         if (carlPos.distanceTo(door.position) < 3.0) {
           if (!this.inSafeRoom) {
             this.inSafeRoom = true;
-            logMessage(`[SYNDICATE ANNOUNCEMENT]: Entering Safe Room. Monsters cannot enter! Rest and prepare.`, 'sys-msg');
+            logMessage(`[SYNDICATE ANNOUNCEMENT]: Entering Safe Room. Monsters cannot enter!`, 'sys-msg');
           }
         }
       }
     }
 
-    // Check Stairwell Goal
     if (this.mapData.stairwell && carlPos.distanceTo(this.mapData.stairwell) < 2.5) {
-      logMessage(`[CONGRATULATIONS]: Crawler Carl and Princess Donut have reached the Level 1 Stairwell! Floor cleared!`, 'sys-msg');
+      logMessage(`[CONGRATULATIONS]: Level 1 Stairwell reached! Floor cleared!`, 'sys-msg');
       const spawnRoom = this.mapData.rooms[0];
       carlPos.set(spawnRoom.x * 4 + (spawnRoom.w * 2), 0, spawnRoom.y * 4 + (spawnRoom.h * 2));
       this.targetPos.copy(carlPos);
