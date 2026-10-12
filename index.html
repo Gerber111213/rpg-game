@@ -3,13 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dungeon Crawler Carl - World Dungeon Floor 1</title>
+  <title>Dungeon Crawler Carl - Phaser Engine</title>
+  <!-- Phaser 3 Engine CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- Fullscreen Canvas -->
-  <canvas id="gameCanvas"></canvas>
-
   <!-- Floating RuneScape Style HUD Overlay -->
   <div id="ui-overlay">
     <div class="hud-header">SYSTEM AI STATUS</div>
@@ -18,7 +17,7 @@
         <h4>Crawler: Carl</h4>
         <p>HP: <span id="hp">100</span>/100</p>
         <p>Footwear: <span class="highlight-danger">NONE (Barefoot)</span></p>
-        <p>Attire: <span class="highlight-pink">Pink Heart Boxers</span></p>
+        <p>Attire: <span class="highlight-pink">Heart Boxers</span></p>
       </div>
       <hr>
       <div class="stat-group">
@@ -28,7 +27,7 @@
       </div>
       <hr>
       <div id="log-box">
-        <p class="sys-msg">[SYSTEM AI]: Welcome Crawler. Floor 1 awaits. Do not crush your toes.</p>
+        <p class="sys-msg">[SYSTEM AI]: Phaser 3 Engine Loaded. Floor 1 active.</p>
       </div>
     </div>
   </div>
