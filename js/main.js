@@ -57,7 +57,7 @@ class Game3D {
     const spawnX = spawnRoom.x * 4 + (spawnRoom.w * 2);
     const spawnZ = spawnRoom.y * 4 + (spawnRoom.h * 2);
 
-    this.carl = new Carl3D(this.scene, spawnX, spawnZ);
+    this.carl = new Carl3D(this.scene, spawnX, spawnZ this.mapData.grid);
     this.donut = new Donut3D(this.scene, spawnX - 2, spawnZ);
     this.mordecai = new Mordecai3D(this.scene, spawnX + 3, spawnZ);
 
