@@ -9,6 +9,7 @@ export class DungeonBuilder {
     this.torches = [];
     this.stairwellPosition = null;
     this.safeRoomDoors = [];
+    this.tutorialChestPos = null;
   }
 
   build() {
@@ -19,17 +20,18 @@ export class DungeonBuilder {
       grid: this.grid, 
       rooms: this.rooms, 
       stairwell: this.stairwellPosition,
-      safeRoomDoors: this.safeRoomDoors 
+      safeRoomDoors: this.safeRoomDoors,
+      tutorialChest: this.tutorialChestPos
     };
   }
 
   generateRoomsAndCorridors() {
-    const minSize = 6, maxSize = 14, targetRooms = 30;
+    const minSize = 8, maxSize = 14, targetRooms = 30;
     for (let i = 0; i < targetRooms; i++) {
       const w = Math.floor(Math.random() * (maxSize - minSize)) + minSize;
       const h = Math.floor(Math.random() * (maxSize - minSize)) + minSize;
-      const x = Math.floor(Math.random() * (this.gridCols - w - 4)) + 2;
-      const y = Math.floor(Math.random() * (this.gridRows - h - 4)) + 2;
+      const x = i === 0 ? 45 : Math.floor(Math.random() * (this.gridCols - w - 4)) + 2;
+      const y = i === 0 ? 45 : Math.floor(Math.random() * (this.gridRows - h - 4)) + 2;
 
       let overlap = false;
       for (let r of this.rooms) {
@@ -39,7 +41,7 @@ export class DungeonBuilder {
         }
       }
 
-      if (!overlap) {
+      if (!overlap || i === 0) {
         const isSafe = (i === 0 || i % 7 === 0); 
         for (let rx = x; rx < x + w; rx++) {
           for (let ry = y; ry < y + h; ry++) {
@@ -98,8 +100,7 @@ export class DungeonBuilder {
       stairGroup.add(step);
     }
 
-    const coreGeo = new THREE.CylinderGeometry(0.6, 0.6, 1.5, 16);
-    const core = new THREE.Mesh(coreGeo, glowMat);
+    const core = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 1.5, 16), glowMat);
     core.position.set(0, 0.8, 0);
     stairGroup.add(core);
 
@@ -117,10 +118,10 @@ export class DungeonBuilder {
     canvas.height = 256;
     const ctx = canvas.getContext('2d');
 
-    ctx.fillStyle = '#333333';
+    ctx.fillStyle = '#444444';
     ctx.fillRect(0, 0, 256, 256);
 
-    ctx.fillStyle = '#cccccc';
+    ctx.fillStyle = '#aaaaaa';
     const rows = 12;
     const cols = 6;
     const rh = 256 / rows;
@@ -149,11 +150,11 @@ export class DungeonBuilder {
 
     const cinderBump = this.createCinderblockBumpMap();
     const wallMat = new THREE.MeshStandardMaterial({ 
-      color: 0x77727e,
-      roughness: 0.85,
-      metalness: 0.1,
+      color: 0x9992a0, // Brighter tone so walls are clearly visible
+      roughness: 0.7,
+      metalness: 0.2,
       bumpMap: cinderBump,
-      bumpScale: 0.35
+      bumpScale: 0.4
     });
 
     for (let r = 0; r < this.gridRows; r++) {
@@ -178,6 +179,28 @@ export class DungeonBuilder {
       }
     }
 
+    // Brightly lit Intro Safe Room (Room 0)
+    const spawnRoom = this.rooms[0];
+    const introLight = new THREE.PointLight(0xffffff, 4.0, 25);
+    introLight.position.set(
+      (spawnRoom.x + spawnRoom.w / 2) * this.tileSize,
+      3.0,
+      (spawnRoom.y + spawnRoom.h / 2) * this.tileSize
+    );
+    this.scene.add(introLight);
+
+    // Tutorial Chest inside Intro Room
+    const chestX = (spawnRoom.x + 2) * this.tileSize;
+    const chestZ = (spawnRoom.y + 2) * this.tileSize;
+    const chestGroup = new THREE.Group();
+    const chestMesh = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.8, 0.8), new THREE.MeshLambertMaterial({ color: 0xd35400 }));
+    chestMesh.position.y = 0.4;
+    chestGroup.add(chestMesh);
+    chestGroup.position.set(chestX, 0, chestZ);
+    this.scene.add(chestGroup);
+
+    this.tutorialChestPos = chestGroup.position;
+
     this.buildSafeRoomDoors();
   }
 
@@ -189,7 +212,6 @@ export class DungeonBuilder {
     let count = 0;
     for (let room of this.rooms) {
       if (room.isSafe) {
-        // Build two doors for starting room (Intro and Dungeon World), single doors elsewhere
         const colsToCheck = count === 0 ? [room.x + 2, room.x + room.w - 3] : [room.x + Math.floor(room.w / 2)];
         
         for (let doorCol of colsToCheck) {
@@ -199,10 +221,8 @@ export class DungeonBuilder {
             const doorZ = doorRow * this.tileSize;
 
             const doorGroup = new THREE.Group();
-            const frame = new THREE.Mesh(new THREE.BoxGeometry(this.tileSize, 4.5, 0.6), frameMat);
-            frame.position.set(0, 2.25, 0);
-            doorGroup.add(frame);
-
+            doorGroup.add(new THREE.Mesh(new THREE.BoxGeometry(this.tileSize, 4.5, 0.6), frameMat)).position.set(0, 2.25, 0);
+            
             const panel = new THREE.Mesh(new THREE.BoxGeometry(this.tileSize - 0.4, 4.0, 0.4), doorMat);
             panel.position.set(0, 2.0, 0);
             doorGroup.add(panel);
@@ -231,9 +251,7 @@ export class DungeonBuilder {
   }
 
   addTorch(x, y, z) {
-    const flameGeo = new THREE.SphereGeometry(0.25, 8, 8);
-    const flameMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
-    const flame = new THREE.Mesh(flameGeo, flameMat);
+    const flame = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffaa00 }));
     flame.position.set(x, y, z);
     this.scene.add(flame);
 
