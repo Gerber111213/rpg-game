@@ -7,12 +7,14 @@ export class DungeonBuilder {
     this.grid = Array.from({ length: this.gridRows }, () => Array(this.gridCols).fill(0));
     this.rooms = [];
     this.torches = [];
+    this.stairwellPosition = null;
   }
 
   build() {
     this.generateRoomsAndCorridors();
+    this.placeStairwell();
     this.render3DWorld();
-    return { grid: this.grid, rooms: this.rooms };
+    return { grid: this.grid, rooms: this.rooms, stairwell: this.stairwellPosition };
   }
 
   generateRoomsAndCorridors() {
@@ -60,14 +62,59 @@ export class DungeonBuilder {
     }
   }
 
+  placeStairwell() {
+    if (this.rooms.length < 2) return;
+    // Pick the furthest room from the spawn room (room 0)
+    const spawnRoom = this.rooms[0];
+    let furthestRoom = this.rooms[1];
+    let maxDist = 0;
+
+    for (let i = 1; i < this.rooms.length; i++) {
+      const r = this.rooms[i];
+      const dist = Math.hypot(r.x - spawnRoom.x, r.y - spawnRoom.y);
+      if (dist > maxDist) {
+        maxDist = dist;
+        furthestRoom = r;
+      }
+    }
+
+    const stairX = (furthestRoom.x + Math.floor(furthestRoom.w / 2)) * this.tileSize;
+    const stairZ = (furthestRoom.y + Math.floor(furthestRoom.h / 2)) * this.tileSize;
+    this.stairwellPosition = new THREE.Vector3(stairX, 0, stairZ);
+
+    // Build 3D Stairwell Mesh
+    const stairGroup = new THREE.Group();
+    const stairMat = new THREE.MeshLambertMaterial({ color: 0x555566 });
+    const glowMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+
+    for (let s = 0; s < 4; s++) {
+      const stepGeo = new THREE.BoxGeometry(2.0 - s * 0.4, 0.2, 2.0 - s * 0.4);
+      const step = new THREE.Mesh(stepGeo, stairMat);
+      step.position.set(0, s * 0.2, 0);
+      stairGroup.add(step);
+    }
+
+    // Portal glowing core
+    const coreGeo = new THREE.CylinderGeometry(0.6, 0.6, 1.5, 16);
+    const core = new THREE.Mesh(coreGeo, glowMat);
+    core.position.set(0, 0.8, 0);
+    stairGroup.add(core);
+
+    const stairLight = new THREE.PointLight(0x00ffff, 3.0, 10);
+    stairLight.position.set(stairX, 1.5, stairZ);
+    this.scene.add(stairLight);
+
+    stairGroup.position.set(stairX, 0, stairZ);
+    this.scene.add(stairGroup);
+  }
+
   render3DWorld() {
     const floorGeo = new THREE.BoxGeometry(this.tileSize, 0.4, this.tileSize);
     const wallGeo = new THREE.BoxGeometry(this.tileSize, 5.0, this.tileSize);
 
-    // High-visibility materials with distinct colors and cave lighting response
-    const floorMat = new THREE.MeshLambertMaterial({ color: 0x4a3b32 }); // Dirt/Rock Floor
-    const safeFloorMat = new THREE.MeshLambertMaterial({ color: 0x2b4c66 }); // Safe Room Floor
-    const wallMat = new THREE.MeshLambertMaterial({ color: 0x6e6875 }); // Manufactured Stone/Brick Wall
+    const floorMat = new THREE.MeshLambertMaterial({ color: 0x4a3b32 });
+    const safeFloorMat = new THREE.MeshLambertMaterial({ color: 0x2b4c66 });
+    const wallMat = new THREE.MeshLambertMaterial({ color: 0x6e6875 });
 
     for (let r = 0; r < this.gridRows; r++) {
       for (let c = 0; c < this.gridCols; c++) {
