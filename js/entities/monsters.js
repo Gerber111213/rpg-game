@@ -14,15 +14,12 @@ export class Monster3D {
 
     this.group = new THREE.Group();
 
-    const skinMat = new THREE.MeshLambertMaterial({ 
-      color: type === 'Rage Ibis' ? 0xcc2222 : 0x2e7d32 
-    });
+    const skinMat = new THREE.MeshLambertMaterial({ color: type === 'Rage Ibis' ? 0xcc2222 : 0x2e7d32 });
     const detailMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
 
     const bodyGeo = new THREE.BoxGeometry(0.9, 1.2, 0.6);
     this.torso = new THREE.Mesh(bodyGeo, skinMat);
     this.torso.position.y = 0.9;
-    this.torso.castShadow = true;
     this.group.add(this.torso);
 
     const headGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
@@ -98,7 +95,6 @@ export class Monster3D {
       moveDir.y = 0;
       moveDir.normalize();
 
-      // Melee spacing: Stop 1.8 units away so they don't share exact space
       if (distToCarl <= 1.8) {
         moveDir.set(0, 0, 0);
         this.attackCooldown -= delta;
@@ -107,7 +103,6 @@ export class Monster3D {
           if (callbacks.onMelee) callbacks.onMelee(this.type === 'Rage Ibis' ? 15 : 10);
         }
       } else {
-        // Ranged projectile attack at distance
         this.rangedCooldown -= delta;
         if (this.rangedCooldown <= 0 && distToCarl > 5.0 && distToCarl < 12.0) {
           this.rangedCooldown = 4.0;
@@ -131,9 +126,6 @@ export class Monster3D {
       if (this.isWalkable(currentPos.x, nextZ)) currentPos.z = nextZ;
 
       this.group.lookAt(currentPos.x + moveDir.x, currentPos.y, currentPos.z + moveDir.z);
-      const time = Date.now() * 0.01;
-      this.leftArm.rotation.x = Math.sin(time) * 0.5;
-      this.rightArm.rotation.x = -Math.sin(time) * 0.5;
     }
   }
 
