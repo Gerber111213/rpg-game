@@ -90,7 +90,7 @@ export class DungeonBuilder {
     this.stairwellPosition = new THREE.Vector3(stairX, 0, stairZ);
 
     const stairGroup = new THREE.Group();
-    const stairMat = new THREE.MeshLambertMaterial({ color: 0x444455 });
+    const stairMat = new THREE.MeshLambertMaterial({ color: 0x555566 });
     const glowMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
 
     for (let s = 0; s < 5; s++) {
@@ -116,9 +116,10 @@ export class DungeonBuilder {
     const floorGeo = new THREE.BoxGeometry(this.tileSize, 0.4, this.tileSize);
     const wallGeo = new THREE.BoxGeometry(this.tileSize, 5.0, this.tileSize);
 
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0x4c4238, roughness: 0.6 });
-    const safeFloorMat = new THREE.MeshStandardMaterial({ color: 0x2a4d66, roughness: 0.5 });
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0x8a8294, roughness: 0.7, metalness: 0.1 });
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x5a4d41, roughness: 0.6 });
+    const safeFloorMat = new THREE.MeshStandardMaterial({ color: 0x2e5b75, roughness: 0.5 });
+    // Bright stone wall material so walls are clearly visible and never black holes
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x9a8fa8, roughness: 0.6, metalness: 0.2 });
 
     for (let r = 0; r < this.gridRows; r++) {
       for (let c = 0; c < this.gridCols; c++) {
@@ -143,7 +144,7 @@ export class DungeonBuilder {
     }
 
     const spawnRoom = this.rooms[0];
-    const introLight = new THREE.PointLight(0xfff5ee, 6.0, 35);
+    const introLight = new THREE.PointLight(0xfffaee, 6.0, 35);
     introLight.position.set(
       (spawnRoom.x + spawnRoom.w / 2) * this.tileSize,
       3.5,
