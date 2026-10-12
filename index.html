@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dungeon Crawler Carl - Modular Build</title>
+  <title>Dungeon Crawler Carl - Floor 1</title>
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- UI Overlay -->
+  <!-- HUD Overlay -->
   <div id="ui-overlay">
     <div class="hud-header">SYSTEM AI STATUS</div>
     <div class="hud-body">
@@ -24,7 +24,7 @@
       </div>
       <hr>
       <div id="log-box">
-        <p class="sys-msg">[SYSTEM AI]: Floor 1 initialized. Modular scripts active.</p>
+        <p class="sys-msg">[SYSTEM AI]: Floor 1 labyrinth active. Explore carefully.</p>
       </div>
     </div>
   </div>
@@ -35,7 +35,9 @@
     <ul id="context-options"></ul>
   </div>
 
-  <!-- Load Modules in Order -->
+  <!-- Scripts -->
+  <script src="src/Carl.js"></script>
+  <script src="src/Donut.js"></script>
   <script src="src/Enemy.js"></script>
   <script src="src/Mordecai.js"></script>
   <script src="src/DungeonScene.js"></script>
