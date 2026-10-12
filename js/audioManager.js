@@ -1,26 +1,70 @@
 export class AudioManager {
   constructor() {
-    this.audioListener = new THREE.AudioListener();
-    this.sounds = new Map();
+    this.ctx = null;
+    window.addEventListener('click', () => {
+      if (!this.ctx) {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+    }, { once: true });
   }
 
-  attachToCamera(camera) {
-    camera.add(this.audioListener);
-  }
-
-  playSpatialSound(soundKey, position, volume = 0.8) {
-    // Spatial sound generator for combat and spell impacts
-    const sound = new THREE.PositionalAudio(this.audioListener);
-    // Placeholder synthesizer trigger for demo compatibility
-    const osc = this.audioListener.context.createOscillator();
-    const gain = this.audioListener.context.createGain();
+  playSlash() {
+    if (!this.ctx) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(80, this.ctx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
     osc.connect(gain);
-    gain.connect(this.audioListener.context.destination);
-    osc.type = soundKey === 'missile' ? 'sine' : 'sawtooth';
-    osc.frequency.setValueAtTime(soundKey === 'missile' ? 880 : 120, this.audioListener.context.currentTime);
-    gain.gain.setValueAtTime(volume * 0.2, this.audioListener.context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, this.audioListener.context.currentTime + 0.3);
+    gain.connect(this.ctx.destination);
     osc.start();
-    osc.stop(this.audioListener.context.currentTime + 0.3);
+    osc.stop(this.ctx.currentTime + 0.15);
+  }
+
+  playShoot() {
+    if (!this.ctx) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(200, this.ctx.currentTime + 0.2);
+    gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.2);
+  }
+
+  playHit() {
+    if (!this.ctx) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(120, this.ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(40, this.ctx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.1);
+  }
+
+  playVictory() {
+    if (!this.ctx) return;
+    [440, 554, 659, 880].forEach((freq, i) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.2, this.ctx.currentTime + i * 0.12);
+      gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + i * 0.12 + 0.2);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(this.ctx.currentTime + i * 0.12);
+      osc.stop(this.ctx.currentTime + i * 0.12 + 0.2);
+    });
   }
 }
