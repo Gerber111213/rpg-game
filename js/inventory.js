@@ -1,28 +1,20 @@
 export class InventoryManager {
   constructor() {
-    this.activeTab = 'carl'; // 'carl' or 'donut'
-    this.carlGrid = Array(24).fill(null);
-    this.donutGrid = Array(24).fill(null);
-    this.belt = [null, null, null, null]; // Quick slots (e.g., Health Potion)
+    this.activeTab = 'carl';
+    this.carlGrid = Array(16).fill(null);
+    this.donutGrid = Array(16).fill(null);
+    this.equipment = { head: null, chest: null, feet: null, weapon: null };
+    this.belt = [null, null, null, null];
 
-    // Add starting items
-    this.addItemToGrid(this.carlGrid, { name: "Boxers with Pink Hearts", icon: "🩳", desc: "Carl's iconic starting apparel." });
-    this.addItemToGrid(this.donutGrid, { name: "Magical Cyan Collar", icon: "💍", desc: "Empowers Princess Donut." });
-    this.addItemToGrid(this.carlGrid, { name: "Health Potion", icon: "🧪", desc: "Restores 50 HP.", type: "potion", heal: 50 });
-    this.belt[0] = { name: "Health Potion", icon: "🧪", desc: "Restores 50 HP.", type: "potion", heal: 50 };
+    // Starting gear
+    this.equipment.chest = { name: "Tactical Vest", icon: "🦺", desc: "+10 Armor", armor: 10 };
+    this.equipment.feet = { name: "Bare Feet", icon: "🦶", desc: "Carl's famous feet (+5 dex)" };
+    this.carlGrid[0] = { name: "Health Potion", icon: "🧪", desc: "Restores 50 HP", type: "potion", heal: 50 };
+    this.donutGrid[0] = { name: "Magical Cyan Collar", icon: "💍", desc: "Empowers Donut" };
+    this.belt[0] = { name: "Health Potion", icon: "🧪", desc: "Restores 50 HP", type: "potion", heal: 50 };
 
     this.setupUI();
     this.updateUI();
-  }
-
-  addItemToGrid(grid, item) {
-    for (let i = 0; i < grid.length; i++) {
-      if (!grid[i]) {
-        grid[i] = item;
-        return true;
-      }
-    }
-    return false;
   }
 
   setupUI() {
@@ -39,7 +31,7 @@ export class InventoryManager {
       slot.addEventListener('click', () => {
         const idx = parseInt(slot.dataset.slot);
         if (this.belt[idx] && this.belt[idx].type === 'potion') {
-          if (window. gameInstance) window.gameInstance.usePotion(this.belt[idx]);
+          if (window.gameInstance) window.gameInstance.usePotion(this.belt[idx]);
           this.belt[idx] = null;
           this.updateUI();
         }
@@ -54,7 +46,7 @@ export class InventoryManager {
 
     const currentGrid = this.activeTab === 'carl' ? this.carlGrid : this.donutGrid;
 
-    for (let i = 0; i < 24; i++) {
+    for (let i = 0; i < 16; i++) {
       const slot = document.createElement('div');
       slot.className = 'grid-slot';
       const item = currentGrid[i];
@@ -68,7 +60,17 @@ export class InventoryManager {
       gridContainer.appendChild(slot);
     }
 
-    // Update Belt UI
+    // Equipment Slots
+    ['head', 'chest', 'feet', 'weapon'].forEach(eqKey => {
+      const eqSlot = document.getElementById(`eq-${eqKey}`);
+      if (eqSlot) {
+        const item = this.equipment[eqKey];
+        eqSlot.innerHTML = `<label>${eqKey.toUpperCase()}</label>` + (item ? item.icon : '');
+        if (item) eqSlot.title = `${item.name}: ${item.desc}`;
+      }
+    });
+
+    // Belt Slots
     for (let i = 0; i < 4; i++) {
       const beltSlot = document.querySelector(`.belt-slot[data-slot="${i}"]`);
       if (beltSlot) {
@@ -81,10 +83,14 @@ export class InventoryManager {
     }
   }
 
-  addLoot(item) {
-    if (this.addItemToGrid(this.carlGrid, item)) {
-      this.updateUI();
-      return true;
+  addItem(item) {
+    const grid = this.activeTab === 'carl' ? this.carlGrid : this.donutGrid;
+    for (let i = 0; i < grid.length; i++) {
+      if (!grid[i]) {
+        grid[i] = item;
+        this.updateUI();
+        return true;
+      }
     }
     return false;
   }
