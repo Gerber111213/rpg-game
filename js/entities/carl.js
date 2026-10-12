@@ -3,7 +3,10 @@ export class Carl3D {
     this.scene = scene;
     this.hp = 100;
     this.maxHp = 100;
-    this.speed = 10;
+    this.walkSpeed = 6;
+    this.runSpeed = 12;
+    this.speed = this.walkSpeed;
+    this.isRunning = false;
     this.name = "Carl";
     this.grid = dungeonGrid;
     this.tileSize = 4;
@@ -58,6 +61,12 @@ export class Carl3D {
     this.scene.add(this.group);
   }
 
+  toggleRun() {
+    this.isRunning = !this.isRunning;
+    this.speed = this.isRunning ? this.runSpeed : this.walkSpeed;
+    return this.isRunning;
+  }
+
   getPosition() { return this.group.position; }
 
   isWalkable(x, z) {
@@ -94,7 +103,8 @@ export class Carl3D {
 
       this.group.lookAt(targetVec.x, currentPos.y, targetVec.z);
 
-      const time = Date.now() * 0.015;
+      const animMultiplier = this.isRunning ? 0.03 : 0.015;
+      const time = Date.now() * animMultiplier;
       this.leftArm.rotation.x = Math.sin(time) * 0.6;
       this.rightArm.rotation.x = -Math.sin(time) * 0.6;
       this.leftLeg.rotation.x = -Math.sin(time) * 0.6;
