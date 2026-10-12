@@ -3,21 +3,58 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dungeon Crawler Carl: Level 1 Labyrinth</title>
+  <title>Dungeon Crawler Carl - 3D Diablo-Style Crawler</title>
   <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+  
+  <!-- Three.js Library & Loaders -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 </head>
 <body oncontextmenu="return false;">
 
-  <div id="log-box">
-    <p class="sys-msg">[SYSTEM]: Initializing Crawler Interface...</p>
+  <!-- Game Canvas Container -->
+  <div id="game-container"></div>
+
+  <!-- HUD Overlay -->
+  <div id="hud">
+    <div id="health-bar-container">
+      <div id="carl-hp-bar" class="hp-fill" style="width: 100%;"></div>
+      <span id="hp-text">Carl HP: 100 / 100</span>
+    </div>
+    
+    <!-- Syndicate AI Event Log -->
+    <div id="log-box">
+      <p class="sys-msg">[SYSTEM AI]: Initializing 3D Tactical Labyrinth Engine...</p>
+    </div>
   </div>
 
+  <!-- Inventory UI Overlay (Press 'I' or Click) -->
+  <div id="inventory-modal" class="hidden">
+    <div class="inventory-window" id="carl-inventory">
+      <h2>Carl's Equipment & Inventory</h2>
+      <div class="equipment-slots">
+        <div class="slot" data-slot="feet">Feet: Bare (Barefoot Penalty)</div>
+        <div class="slot" data-slot="torso">Chest: Leather Vest</div>
+        <div class="slot" data-slot="mainhand">Main Hand: Spiked Club</div>
+      </div>
+      <div class="bag-grid" id="carl-bag"></div>
+    </div>
+    <div class="inventory-window" id="donut-inventory">
+      <h2>Donut's Equipment & Inventory</h2>
+      <div class="equipment-slots">
+        <div class="slot" data-slot="neck">Neck: Pink Sequined Collar</div>
+        <div class="slot" data-slot="head">Head: Ruby Tiara</div>
+      </div>
+      <div class="bag-grid" id="donut-bag"></div>
+    </div>
+  </div>
+
+  <!-- Context Menu -->
   <div id="context-menu" class="hidden">
     <ul id="context-options"></ul>
   </div>
 
-  <!-- Load main game as an ES6 module -->
-  <script type="module" src="game.js"></script>
+  <!-- Main ES6 Entry Point -->
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>
