@@ -3,40 +3,42 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dungeon Crawler Carl - Fan RPG</title>
+  <title>Dungeon Crawler Carl - World Dungeon Floor 1</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="game-container">
-    <!-- Game World Canvas -->
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
+  <!-- Fullscreen Canvas -->
+  <canvas id="gameCanvas"></canvas>
 
-    <!-- Side Interface Panel (RuneScape Style) -->
-    <div id="ui-panel">
-      <div id="stats-section">
-        <h3>Crawler Stats</h3>
-        <p>Health: <span id="hp">100</span>/100</p>
-        <p>Strength: <span id="str">1</span></p>
-        <p>Agility: <span id="agi">1</span></p>
+  <!-- Floating RuneScape Style HUD Overlay -->
+  <div id="ui-overlay">
+    <div class="hud-header">SYSTEM AI STATUS</div>
+    <div class="hud-body">
+      <div class="stat-group">
+        <h4>Crawler: Carl</h4>
+        <p>HP: <span id="hp">100</span>/100</p>
+        <p>Footwear: <span class="highlight-danger">NONE (Barefoot)</span></p>
+        <p>Attire: <span class="highlight-pink">Pink Heart Boxers</span></p>
       </div>
       <hr>
-      <div id="inventory-section">
-        <h3>Inventory</h3>
-        <div class="inventory-grid">
-          <div class="slot">Box of Extra Spicy Surprises</div>
-          <div class="slot">Empty</div>
-          <div class="slot">Empty</div>
-          <div class="slot">Empty</div>
-        </div>
+      <div class="stat-group">
+        <h4>Companion: Donut</h4>
+        <p>Breed: Grand Champion Persian</p>
+        <p>Spell: <span class="highlight-magic">Magic Missile</span></p>
+      </div>
+      <hr>
+      <div id="log-box">
+        <p class="sys-msg">[SYSTEM AI]: Welcome Crawler. Floor 1 awaits. Do not crush your toes.</p>
       </div>
     </div>
   </div>
 
+  <!-- Custom Right-Click Context Menu -->
+  <div id="context-menu" class="hidden">
+    <div id="context-header">Action Menu</div>
+    <ul id="context-options"></ul>
+  </div>
+
   <script src="game.js"></script>
-<!-- Custom RuneScape Right-Click Menu -->
-<div id="context-menu" class="hidden">
-  <div id="context-header">Options</div>
-  <ul id="context-options"></ul>
-</div>
 </body>
 </html>
