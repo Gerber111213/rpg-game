@@ -1,440 +1,88 @@
-import { DungeonBuilder } from './dungeonBuilder.js';
-import { Carl3D } from './entities/carl.js';
-import { Donut3D } from './entities/donut.js';
-import { Mordecai3D } from './entities/mordecai.js';
-import { Monster3D } from './entities/monsters.js';
-import { CombatEngine } from './combat.js';
-import { AudioManager } from './audioManager.js';
-import { InventoryManager } from './inventory.js';
+// Main Entry Point for Dungeon Crawler Carl 3D Engine
 
-const logBox = document.getElementById('log-box');
-const contextMenu = document.getElementById('context-menu');
-const contextOptions = document.getElementById('context-options');
+let scene, camera, renderer, player;
+let clock = new THREE.Clock();
 
-function logMessage(text, className = '') {
-  const p = document.createElement('p');
-  p.className = className;
-  p.textContent = text;
-  if (logBox) {
-    logBox.appendChild(p);
-    logBox.scrollTop = logBox.scrollHeight;
+function init() {
+  // 1. Container Check & Setup
+  const container = document.getElementById('game-container');
+  if (!container) {
+    console.error("Critical Error: #game-container element missing from DOM.");
+    return;
   }
+
+  // 2. Scene Initialization
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0e0e12);
+
+  // 3. Camera Setup (Diablo-style Isometric Top-Down Angle)
+  camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera.position.set(0, 15, 12);
+  camera.lookAt(0, 0, 0);
+
+  // 4. Renderer Setup
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.shadowMap.enabled = true;
+  container.appendChild(renderer.domElement);
+
+  // 5. Mandatory Lighting (Prevents the Black Screen issue)
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+  scene.add(ambientLight);
+
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  dirLight.position.set(10, 20, 15);
+  dirLight.castShadow = true;
+  scene.add(dirLight);
+
+  // 6. Temporary Test Geometry (Carl's Placeholder Avatar / Floor)
+  const floorGeo = new THREE.PlaneGeometry(30, 30);
+  const floorMat = new THREE.MeshStandardMaterial({ color: 0x222629, roughness: 0.8 });
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.receiveShadow = true;
+  scene.add(floor);
+
+  // Placeholder Player Mesh (Carl in his boxers)
+  const playerGeo = new THREE.BoxGeometry(1, 2, 1);
+  const playerMat = new THREE.MeshStandardMaterial({ color: 0xe74c3c });
+  player = new THREE.Mesh(playerGeo, playerMat);
+  player.position.y = 1;
+  player.castShadow = true;
+  scene.add(player);
+
+  // 7. Event Listeners for UI toggles (e.g., Press 'I' for Inventory)
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'i' || e.key === 'I') {
+      const modal = document.getElementById('inventory-modal');
+      modal.classList.toggle('hidden');
+    }
+  });
+
+  // Window Resize Handling
+  window.addEventListener('resize', onWindowResize);
+
+  // 8. Start Game Loop
+  animate();
+  
+  console.log("[SYSTEM AI]: 3D Engine initialized successfully. Press 'I' to toggle inventory.");
 }
 
-class Game3D {
-  constructor() {
-    window.gameInstance = this;
-    this.container = document.getElementById('game-container');
-    this.currentFloor = 1;
-    
-    this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x060609);
-    this.scene.fog = new THREE.FogExp2(0x060609, 0.025);
-
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.container.appendChild(this.renderer.domElement);
-
-    this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-    this.cameraOffset = new THREE.Vector3(0, 30, 22);
-
-    const ambientLight = new THREE.AmbientLight(0x555566, 0.7);
-    this.scene.add(ambientLight);
-
-    const dirLight = new THREE.DirectionalLight(0x9999bb, 0.5);
-    dirLight.position.set(20, 40, 20);
-    this.scene.add(dirLight);
-
-    this.audio = new AudioManager();
-    this.inventory = new InventoryManager(this);
-    this.combat = new CombatEngine(this.scene, this.inventory);
-
-    this.initFloor();
-
-    this.setupUI();
-    this.setupMinimap();
-    this.setupInputs();
-    this.clock = new THREE.Clock();
-
-    logMessage(`[SYSTEM AI]: Floor 1 initialized. Right-click objects for context menu options.`, 'sys-msg');
-
-    this.animate();
-  }
-
-  initFloor() {
-    this.dungeon = new DungeonBuilder(this.scene);
-    this.mapData = this.dungeon.build();
-
-    const spawnRoom = this.mapData.rooms[0];
-    const spawnX = spawnRoom.x * 4 + (spawnRoom.w * 2);
-    const spawnZ = spawnRoom.y * 4 + (spawnRoom.h * 2);
-
-    if (!this.carl) {
-      this.carl = new Carl3D(this.scene, spawnX, spawnZ, this.mapData.grid);
-      this.donut = new Donut3D(this.scene, spawnX - 2, spawnZ);
-      this.mordecai = new Mordecai3D(this.scene, spawnX + 3, spawnZ);
-
-      this.carlLight = new THREE.PointLight(0xff9944, 7.0, 30);
-      this.carlLight.position.set(spawnX, 2.0, spawnZ);
-      this.scene.add(this.carlLight);
-    } else {
-      this.carl.group.position.set(spawnX, 0, spawnZ);
-      this.carl.grid = this.mapData.grid;
-      this.donut.group.position.set(spawnX - 2, 0, spawnZ);
-      this.mordecai.group.position.set(spawnX + 3, 0, spawnZ);
-    }
-
-    this.monsters = [];
-    this.projectiles = [];
-    this.spawnMonsters();
-    this.targetPos = this.carl.getPosition().clone();
-    this.isMouseDown = false;
-    this.inSafeRoom = true;
-  }
-
-  setupUI() {
-    const hud = document.createElement('div');
-    hud.id = 'hud-overlay';
-    hud.innerHTML = `
-      <div class="hud-title">CRAWLER CARL (FLOOR <span id="floor-num">1</span>)</div>
-      <div class="hud-row">HP: <span id="hp-text">100/100</span><div class="hp-bar-container"><div id="player-hp-fill"></div></div></div>
-      <div class="hud-row" style="font-size:11px; color:#aaa; margin-top:4px;">Movement: <span id="move-mode">WALK</span></div>
-    `;
-    document.body.appendChild(hud);
-
-    // Spellbar & Potion Belt UI
-    const spellbar = document.createElement('div');
-    spellbar.id = 'spellbar';
-    spellbar.innerHTML = `
-      <div class="spell-slot" title="Magic Missile">✨<span>1</span></div>
-      <div class="belt-slot-hud" title="Health Potion (Press Q)" onclick="window.gameInstance.usePotion(window.gameInstance.inventory.belt[0])">🧪<span>Q</span></div>
-    `;
-    document.body.appendChild(spellbar);
-
-    const statsModal = document.createElement('div');
-    statsModal.id = 'stats-modal';
-    statsModal.className = 'hidden';
-    statsModal.innerHTML = `
-      <h2>CHARACTER STATS & SKILLS</h2>
-      <div class="stat-row"><span>Name:</span><span>Bradley "Carl" Hamblin</span></div>
-      <div class="stat-row"><span>Class:</span><span>Primary Care Paramedic / Crawler</span></div>
-      <div class="stat-row"><span>Strength:</span><span>15</span></div>
-      <div class="stat-row"><span>Dexterity:</span><span>12</span></div>
-      <div class="stat-row"><span>Armor Defense:</span><span>17</span></div>
-      <div class="stat-row"><span>Melee Damage:</span><span>25</span></div>
-      <div style="text-align:center; margin-top:16px;"><button onclick="document.getElementById('stats-modal').classList.add('hidden')" style="background:#554433; color:#ffd700; border:1px solid #d4af37; padding:6px 16px; cursor:pointer;">Close</button></div>
-    `;
-    document.body.appendChild(statsModal);
-
-    const banner = document.createElement('div');
-    banner.id = 'announcement-banner';
-    banner.className = 'hidden';
-    document.body.appendChild(banner);
-  }
-
-  showAnnouncement(text) {
-    const banner = document.getElementById('announcement-banner');
-    if (!banner) return;
-    banner.textContent = text;
-    banner.classList.remove('hidden');
-    setTimeout(() => banner.classList.add('hidden'), 4000);
-  }
-
-  setupMinimap() {
-    const container = document.createElement('div');
-    container.id = 'minimap-container';
-    container.innerHTML = `<canvas id="minimap-canvas" width="180" height="180"></canvas>`;
-    document.body.appendChild(container);
-    this.minimapCanvas = document.getElementById('minimap-canvas');
-    this.minimapCtx = this.minimapCanvas.getContext('2d');
-  }
-
-  updateHUD() {
-    const hpText = document.getElementById('hp-text');
-    const hpFill = document.getElementById('player-hp-fill');
-    const floorNum = document.getElementById('floor-num');
-    const moveMode = document.getElementById('move-mode');
-    if (hpText && hpFill) {
-      hpText.textContent = `${this.carl.hp}/${this.carl.maxHp}`;
-      hpFill.style.width = `${(this.carl.hp / this.carl.maxHp) * 100}%`;
-    }
-    if (floorNum) floorNum.textContent = this.currentFloor;
-    if (moveMode) {
-      moveMode.textContent = this.carl.isRunning ? 'RUN' : 'WALK';
-      moveMode.style.color = this.carl.isRunning ? '#ff4444' : '#00ffaa';
-    }
-  }
-
-  spawnMonsters() {
-    for (let i = 1; i < this.mapData.rooms.length; i++) {
-      const r = this.mapData.rooms[i];
-      const mx = r.x * 4 + (r.w * 2);
-      const mz = r.y * 4 + (r.h * 2);
-      const type = Math.random() > 0.5 ? 'Rage Ibis' : 'Goblin Scavenger';
-      this.monsters.push(new Monster3D(this.scene, type, mx, mz, this.mapData.grid));
-    }
-  }
-
-  setupInputs() {
-    window.addEventListener('mousedown', (e) => {
-      if (e.button === 0) {
-        this.isMouseDown = true;
-        this.updateTargetFromMouse(e);
-      }
-    });
-
-    window.addEventListener('mousemove', (e) => {
-      if (this.isMouseDown) {
-        this.updateTargetFromMouse(e);
-      }
-    });
-
-    window.addEventListener('mouseup', () => { this.isMouseDown = false; });
-
-    window.addEventListener('click', (e) => {
-      this.hideContextMenu();
-      this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-      this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-      this.raycaster.setFromCamera(this.mouse, this.camera);
-      
-      const monsterMeshes = this.monsters.map(m => m.torso);
-      const hitMonsters = this.raycaster.intersectObjects(monsterMeshes);
-      
-      if (hitMonsters.length > 0) {
-        const clickedMesh = hitMonsters[0].object;
-        const targetMonster = this.monsters.find(m => m.torso === clickedMesh || m.group.children.includes(clickedMesh));
-        if (targetMonster && !targetMonster.isDead) {
-          const dist = this.carl.getPosition().distanceTo(targetMonster.group.position);
-          if (dist < 5.0) {
-            this.audio.playSlash();
-            const defeated = targetMonster.takeDamage(25);
-            logMessage(`CARL strikes ${targetMonster.name} for 25 damage!`, 'combat-msg');
-            if (defeated) {
-              this.combat.handleCorpseCollapse(targetMonster);
-              this.spawnBloodEffect(targetMonster.group.position);
-              logMessage(`${targetMonster.name} obliterated! Right-click corpse to loot.`, 'sys-msg');
-            }
-          }
-        }
-      }
-    });
-
-    window.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-      this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-      this.raycaster.setFromCamera(this.mouse, this.camera);
-
-      const mordecaiIntersect = this.raycaster.intersectObject(this.mordecai.group, true);
-      if (mordecaiIntersect.length > 0 && this.carl.getPosition().distanceTo(this.mordecai.getPosition()) < 6.0) {
-        this.showContextMenu(e.clientX, e.clientY, [{ text: "Talk to Mordecai", action: () => this.showMordecaiDialogue() }]);
-        return;
-      }
-
-      if (this.mapData.tutorialChest && this.carl.getPosition().distanceTo(this.mapData.tutorialChest) < 5.0) {
-        this.showContextMenu(e.clientX, e.clientY, [{ text: "Open Tutorial Chest", action: () => {
-          document.getElementById('inventory-modal').classList.remove('hidden');
-          logMessage(`[CHEST]: Opened inventory.`, 'sys-msg');
-        }}]);
-        return;
-      }
-
-      const monsterMeshes = this.monsters.map(m => m.torso);
-      const hitMonsters = this.raycaster.intersectObjects(monsterMeshes);
-      if (hitMonsters.length > 0) {
-        const clickedMesh = hitMonsters[0].object;
-        const targetMonster = this.monsters.find(m => m.torso === clickedMesh || m.group.children.includes(clickedMesh));
-        if (targetMonster && targetMonster.isDead) {
-          this.showContextMenu(e.clientX, e.clientY, [{ text: `Loot ${targetMonster.name}`, action: () => {
-            const msg = this.combat.lootCorpse(targetMonster);
-            logMessage(msg, 'sys-msg');
-          }}]);
-          return;
-        }
-      }
-    });
-
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'i' || e.key === 'I') {
-        document.getElementById('inventory-modal').classList.toggle('hidden');
-      }
-      if (e.key === 'r' || e.key === 'R') {
-        const running = this.carl.toggleRun();
-        logMessage(`[MOVEMENT]: Toggled to ${running ? 'RUN' : 'WALK'} mode.`, 'sys-msg');
-        this.updateHUD();
-      }
-      if (e.key === 'a' || e.key === 'A') {
-        document.getElementById('stats-modal').classList.toggle('hidden');
-      }
-      if (e.key === '1') {
-        this.castSpell('magic_missile');
-      }
-      if (e.key === 'q' || e.key === 'Q') {
-        const potion = this.inventory.belt[0];
-        if (potion) this.usePotion(potion);
-      }
-    });
-  }
-
-  spawnBloodEffect(pos) {
-    const bloodGeo = new THREE.BufferGeometry();
-    const count = 35;
-    const positions = new Float32Array(count * 3);
-    for (let i = 0; i < count * 3; i += 3) {
-      positions[i] = pos.x + (Math.random() - 0.5) * 1.5;
-      positions[i+1] = 0.1;
-      positions[i+2] = pos.z + (Math.random() - 0.5) * 1.5;
-    }
-    bloodGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const bloodMat = new THREE.PointsMaterial({ color: 0xcc0000, size: 0.25 });
-    const bloodSplatter = new THREE.Points(bloodGeo, bloodMat);
-    this.scene.add(bloodSplatter);
-  }
-
-  castSpell(type) {
-    if (type === 'magic_missile') {
-      const liveMonsters = this.monsters.filter(m => !m.isDead);
-      if (liveMonsters.length > 0) {
-        const nearest = liveMonsters.reduce((prev, curr) => 
-          prev.group.position.distanceTo(this.carl.getPosition()) < curr.group.position.distanceTo(this.carl.getPosition()) ? prev : curr
-        );
-        if (nearest.group.position.distanceTo(this.carl.getPosition()) < 18.0) {
-          this.audio.playSpell();
-          const defeated = nearest.takeDamage(40);
-          logMessage(`CARL casts MAGIC MISSILE for 40 arcane damage!`, 'combat-msg');
-          if (defeated) {
-            this.combat.handleCorpseCollapse(nearest);
-            this.spawnBloodEffect(nearest.group.position);
-          }
-        }
-      }
-    }
-  }
-
-  usePotion(potion) {
-    if (!potion) {
-      logMessage(`No health potion in belt slot 1!`, 'sys-msg');
-      return;
-    }
-    if (this.carl.hp < this.carl.maxHp) {
-      this.carl.hp = Math.min(this.carl.maxHp, this.carl.hp + potion.heal);
-      this.audio.playPotion();
-      logMessage(`[ITEM]: Used Health Potion! Restored 50 HP.`, 'sys-msg');
-      this.updateHUD();
-      this.inventory.belt[0] = null;
-      this.inventory.updateUI();
-    } else {
-      logMessage(`HP is already full!`, 'sys-msg');
-    }
-  }
-
-  showMordecaiDialogue() {
-    const modal = document.getElementById('dialogue-modal') || (() => {
-      const m = document.createElement('div');
-      m.id = 'dialogue-modal';
-      m.innerHTML = `<div id="npc-name">Mordecai</div><div id="dialogue-text"></div><ul id="dialogue-options"></ul>`;
-      document.body.appendChild(m);
-      return m;
-    })();
-    modal.classList.remove('hidden');
-    document.getElementById('dialogue-text').textContent = `"Listen Carl. Floor ${this.currentFloor} is dangerous. Watch your back."`;
-    document.getElementById('dialogue-options').innerHTML = `<li onclick="document.getElementById('dialogue-modal').classList.add('hidden')">Close</li>`;
-  }
-
-  updateTargetFromMouse(e) {
-    this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-    this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-    this.raycaster.setFromCamera(this.mouse, this.camera);
-    const intersects = this.raycaster.intersectObjects(this.scene.children, true);
-    if (intersects.length > 0) {
-      this.targetPos.copy(intersects[0].point);
-      this.targetPos.y = 0;
-    }
-  }
-
-  showContextMenu(x, y, options) {
-    if (!contextMenu || !contextOptions) return;
-    contextOptions.innerHTML = '';
-    options.forEach(opt => {
-      const li = document.createElement('li');
-      li.textContent = opt.text;
-      li.onclick = () => { opt.action(); this.hideContextMenu(); };
-      contextOptions.appendChild(li);
-    });
-    contextMenu.style.left = `${x}px`;
-    contextMenu.style.top = `${y}px`;
-    contextMenu.classList.remove('hidden');
-  }
-
-  hideContextMenu() { if (contextMenu) contextMenu.classList.add('hidden'); }
-
-  renderMinimap() {
-    if (!this.minimapCtx) return;
-    const ctx = this.minimapCtx;
-    const width = this.minimapCanvas.width;
-    const height = this.minimapCanvas.height;
-
-    ctx.fillStyle = '#0a0a0f';
-    ctx.fillRect(0, 0, width, height);
-
-    const carlPos = this.carl.getPosition();
-    const scale = 3.5;
-
-    for (let m of this.monsters) {
-      if (!m.isDead) {
-        const mPos = m.group.position;
-        const dx = (mPos.x - carlPos.x) * scale + width / 2;
-        const dz = (mPos.z - carlPos.z) * scale + height / 2;
-        if (dx >= 0 && dx <= width && dz >= 0 && dz <= height) {
-          ctx.fillStyle = '#ff4444';
-          ctx.beginPath(); ctx.arc(dx, dz, 3, 0, Math.PI * 2); ctx.fill();
-        }
-      }
-    }
-
-    const mordPos = this.mordecai.getPosition();
-    const mdx = (mordPos.x - carlPos.x) * scale + width / 2;
-    const mdz = (mordPos.z - carlPos.z) * scale + height / 2;
-    if (mdx >= 0 && mdx <= width && mdz >= 0 && mdz <= height) {
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath(); ctx.arc(mdx, mdz, 3.5, 0, Math.PI * 2); ctx.fill();
-    }
-
-    ctx.fillStyle = '#00ffff';
-    ctx.beginPath(); ctx.arc(width / 2, height / 2, 4, 0, Math.PI * 2); ctx.fill();
-  }
-
-  animate() {
-    requestAnimationFrame(() => this.animate());
-    const delta = this.clock.getDelta();
-
-    this.carl.moveTo(this.targetPos, delta);
-    this.donut.follow(this.carl.getPosition(), delta);
-
-    for (let m of this.monsters) {
-      m.updateAI(this.carl.getPosition(), delta, {
-        onMelee: (dmg) => {
-          this.carl.hp = Math.max(0, this.carl.hp - dmg);
-          logMessage(`[COMBAT]: ${m.name} strikes Carl for ${dmg} damage!`, 'combat-msg');
-          this.updateHUD();
-        }
-      });
-      m.updateUI(this.camera);
-    }
-
-    const carlPos = this.carl.getPosition();
-    this.carlLight.position.set(carlPos.x, carlPos.y + 2.0, carlPos.z);
-
-    if (this.mapData.stairwell && carlPos.distanceTo(this.mapData.stairwell) < 2.5) {
-      this.currentFloor++;
-      this.showAnnouncement(`[FLOOR ${this.currentFloor}]: Borant Corporation escalates the labyrinth!`);
-      logMessage(`[SYNDICATE]: Advancing to Floor ${this.currentFloor}!`, 'sys-msg');
-      this.initFloor();
-    }
-
-    this.renderMinimap();
-    this.renderer.render(this.scene, this.camera);
-  }
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-window.onload = () => { new Game3D(); };
+function animate() {
+  requestAnimationFrame(animate);
+
+  // Optional subtle rotation or animation tick for testing loop
+  const delta = clock.getDelta();
+
+  renderer.render(scene, camera);
+}
+
+// Kick off engine execution
+init();
