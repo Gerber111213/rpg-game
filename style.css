@@ -14,7 +14,7 @@ body {
   display: block;
 }
 
-/* --- HUD OVERLAY --- */
+/* --- TOP LEFT HUD --- */
 #hud-overlay {
   position: absolute;
   top: 20px;
@@ -57,44 +57,7 @@ body {
   transition: width 0.2s ease;
 }
 
-/* --- SPELLBAR / ACTIVE HOTBAR --- */
-#spellbar {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 8px;
-  background: rgba(10, 10, 15, 0.85);
-  border: 1px solid #444;
-  padding: 8px;
-  border-radius: 6px;
-  z-index: 10;
-}
-
-.spell-slot {
-  width: 44px;
-  height: 44px;
-  background: #1a1a24;
-  border: 1px solid #555;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  position: relative;
-  cursor: pointer;
-  color: #fff;
-}
-.spell-slot span {
-  position: absolute;
-  bottom: 2px;
-  right: 4px;
-  font-size: 9px;
-  color: #aaa;
-}
-
-/* --- MINIMAP --- */
+/* --- BOTTOM RIGHT MINIMAP --- */
 #minimap-container {
   position: absolute;
   bottom: 20px;
@@ -152,189 +115,173 @@ body {
 }
 #context-options li:hover { background: #2a2a3b; color: #ffffff; }
 
-/* --- SYNDICATE ANNOUNCEMENT BANNER --- */
-#announcement-banner {
-  position: absolute;
-  top: 15%;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(180, 20, 20, 0.9);
-  border: 2px solid #ff3333;
-  color: #fff;
-  padding: 16px 32px;
-  border-radius: 8px;
-  font-family: monospace;
-  font-size: 16px;
-  font-weight: bold;
-  text-align: center;
-  z-index: 200;
-  box-shadow: 0 0 30px rgba(255,0,0,0.8);
-  transition: opacity 0.5s ease;
-}
-#announcement-banner.hidden { display: none; opacity: 0; }
-
-/* --- DIALOGUE MODAL --- */
-#dialogue-modal {
-  position: absolute;
-  bottom: 180px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 600px;
-  background: rgba(15, 15, 22, 0.95);
-  border: 2px solid #f39c12;
-  border-radius: 8px;
-  padding: 20px;
-  z-index: 40;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-  font-family: 'Segoe UI', sans-serif;
-}
-#dialogue-modal.hidden { display: none; }
-#npc-name { color: #f39c12; font-weight: bold; font-size: 16px; margin-bottom: 8px; }
-#dialogue-text { font-size: 14px; margin-bottom: 14px; line-height: 1.5; color: #e0e0e0; }
-#dialogue-options { list-style: none; padding: 0; margin: 0; }
-#dialogue-options li {
-  background: rgba(243, 156, 18, 0.1);
-  border: 1px solid rgba(243, 156, 18, 0.4);
-  padding: 8px 12px;
-  margin-bottom: 6px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-}
-#dialogue-options li:hover { background: rgba(243, 156, 18, 0.3); }
-
-/* --- DIABLO GRID INVENTORY & EQUIPMENT --- */
+/* --- DIABLO II STYLE INVENTORY PANEL (Right Third, 40% Transparent) --- */
 #inventory-modal {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 540px;
-  background: rgba(18, 18, 26, 0.96);
-  border: 2px solid #707090;
-  border-radius: 8px;
+  top: 0;
+  right: 0;
+  width: 33.33vw;
+  height: 100vh;
+  background: rgba(18, 15, 25, 0.6);
+  backdrop-filter: blur(4px);
+  border-left: 2px solid #554433;
   padding: 20px;
   z-index: 50;
-  box-shadow: 0 15px 50px rgba(0,0,0,0.9);
+  box-shadow: -10px 0 40px rgba(0,0,0,0.8);
   font-family: monospace;
+  box-sizing: border-box;
+  overflow-y: auto;
 }
 #inventory-modal.hidden { display: none; }
 
-.inv-tabs {
+.inv-header {
   display: flex;
   justify-content: space-between;
-  border-bottom: 1px solid #444;
+  align-items: center;
+  border-bottom: 1px solid #554433;
   padding-bottom: 8px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
+
+.inv-tabs { display: flex; gap: 8px; }
 .inv-tab {
-  background: #2a2a3b;
-  border: 1px solid #555;
-  color: #fff;
-  padding: 6px 14px;
-  border-radius: 4px;
+  background: #2a221b;
+  border: 1px solid #554433;
+  color: #d4af37;
+  padding: 4px 10px;
+  border-radius: 3px;
   cursor: pointer;
+  font-size: 12px;
 }
-.inv-tab.active { background: #3498db; border-color: #2980b9; }
+.inv-tab.active { background: #554433; color: #fff; }
 
-.inventory-layout {
+/* Character Paperdoll / Equipment Layout */
+.paperdoll-container {
+  position: relative;
+  height: 220px;
+  background: rgba(0,0,0,0.3);
+  border: 1px inset #443322;
+  border-radius: 6px;
+  margin-bottom: 16px;
   display: flex;
-  gap: 20px;
-}
-
-.equipment-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  justify-content: center;
+  align-items: center;
 }
 
 .eq-slot {
-  width: 50px;
-  height: 50px;
-  background: #111;
-  border: 2px dashed #555;
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  background: rgba(20,15,10,0.8);
+  border: 2px solid #665544;
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 20px;
-  position: relative;
+  cursor: pointer;
 }
-.eq-slot label {
+.eq-slot span {
   position: absolute;
-  top: -14px;
-  left: 0;
-  font-size: 10px;
-  color: #aaa;
+  bottom: -14px;
+  font-size: 9px;
+  color: #cca;
+  width: 70px;
+  text-align: center;
+  left: -15px;
 }
 
+/* Positioning paperdoll slots */
+#eq-head { top: 12px; left: calc(50% - 22px); }
+#eq-weapon { top: 70px; left: calc(50% - 80px); }
+#eq-chest { top: 70px; left: calc(50% - 22px); }
+#eq-shield { top: 70px; left: calc(50% + 36px); }
+#eq-gloves { top: 130px; left: calc(50% - 80px); }
+#eq-pants { top: 130px; left: calc(50% - 22px); }
+#eq-boots { top: 130px; left: calc(50% + 36px); }
+#eq-ring1 { top: 175px; left: calc(50% - 50px); }
+#eq-ring2 { top: 175px; left: calc(50% + 10px); }
+
+/* 24x8 Diablo Grid */
 #grid-container {
   display: grid;
-  grid-template-columns: repeat(4, 50px);
-  grid-template-rows: repeat(4, 50px);
-  gap: 4px;
-  background: #111;
-  padding: 8px;
-  border: 2px inset #444;
+  grid-template-columns: repeat(8, 38px);
+  grid-template-rows: repeat(24, 38px);
+  gap: 3px;
+  background: rgba(10,8,6,0.8);
+  padding: 6px;
+  border: 2px inset #443322;
   margin-bottom: 14px;
 }
 
 .grid-slot {
-  width: 50px;
-  height: 50px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.1);
-  position: relative;
+  width: 38px;
+  height: 38px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.08);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .inv-item {
-  width: 44px;
-  height: 44px;
-  background: #2c3e50;
-  border: 2px solid #34495e;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  cursor: grab;
-}
-
-#belt-container {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  background: rgba(0,0,0,0.4);
-  padding: 8px;
-  border-radius: 4px;
-  border: 1px solid #444;
-}
-.belt-slot {
-  width: 44px;
-  height: 44px;
-  background: #1a1a24;
-  border: 1px solid #555;
-  border-radius: 4px;
+  width: 34px;
+  height: 34px;
+  background: #3d2d1f;
+  border: 2px solid #8b6914;
+  border-radius: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 16px;
-  position: relative;
-  cursor: pointer;
+  cursor: grab;
 }
-.belt-slot span { position: absolute; bottom: 2px; right: 4px; font-size: 9px; color: #aaa; }
 
-.monster-tag {
+/* Item Tooltip Popup */
+#item-tooltip {
   position: absolute;
-  transform: translate(-50%, -100%);
-  pointer-events: none;
-  text-align: center;
+  background: rgba(15, 12, 8, 0.95);
+  border: 2px solid #d4af37;
+  border-radius: 4px;
+  padding: 10px;
+  color: #f3e5ab;
   font-family: monospace;
-  z-index: 10;
+  font-size: 12px;
+  z-index: 1000;
+  pointer-events: none;
+  max-width: 220px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.8);
 }
-.m-name { color: #ff4444; font-size: 11px; font-weight: bold; text-shadow: 1px 1px 2px #000; margin-bottom: 2px; }
-.m-hp-bar { width: 50px; height: 6px; background: rgba(0, 0, 0, 0.7); border: 1px solid #555; border-radius: 3px; overflow: hidden; margin: 0 auto; }
-.m-hp-fill { width: 100%; height: 100%; background: #2ecc71; transition: width 0.2s ease; }
+#item-tooltip.hidden { display: none; }
+#tooltip-title { color: #ffd700; font-weight: bold; margin-bottom: 4px; }
+#tooltip-desc { color: #fff; margin-bottom: 6px; }
+#tooltip-stats { color: #00ffaa; }
+
+/* --- STATS / SKILL SCREEN (Letter A) --- */
+#stats-modal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 420px;
+  background: rgba(18, 15, 25, 0.95);
+  border: 2px solid #d4af37;
+  border-radius: 8px;
+  padding: 20px;
+  z-index: 60;
+  color: #f3e5ab;
+  font-family: monospace;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.9);
+}
+#stats-modal.hidden { display: none; }
+#stats-modal h2 { color: #ffd700; margin-top: 0; border-bottom: 1px solid #554433; padding-bottom: 6px; }
+.stat-row { display: flex; justify-content: space-between; margin: 8px 0; font-size: 14px; }
+
+/* Announcer & Dialogue */
+#announcement-banner {
+  position: absolute; top: 15%; left: 50%; transform: translateX(-50%);
+  background: rgba(180, 20, 20, 0.9); border: 2px solid #ff3333; color: #fff;
+  padding: 16px 32px; border-radius: 8px; font-family: monospace; font-size: 16px;
+  font-weight: bold; text-align: center; z-index: 200; box-shadow: 0 0 30px rgba(255,0,0,0.8);
+}
+#announcement-banner.hidden { display: none; }
