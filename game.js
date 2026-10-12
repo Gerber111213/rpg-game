@@ -20,7 +20,7 @@ class Carl extends Phaser.Physics.Arcade.Sprite {
     scene.physics.add.existing(this);
     
     this.setCollideWorldBounds(true);
-    // Adjust physics body size to match isometric feet placement
+    // Adjust physics body size to match isometric feet footprint
     this.body.setSize(20, 10); 
     this.body.setOffset(6, 50);
 
@@ -34,10 +34,10 @@ class Carl extends Phaser.Physics.Arcade.Sprite {
     
     if (dist > 10) {
       this.scene.physics.moveTo(this, targetX, targetY, this.speed);
-      this.updateAnimation(true); // Moving
+      this.updateAnimation(true);
     } else {
       this.body.setVelocity(0, 0);
-      this.updateAnimation(false); // Idle
+      this.updateAnimation(false);
     }
   }
 
@@ -71,20 +71,104 @@ class Carl extends Phaser.Physics.Arcade.Sprite {
   }
 }
 
-// --- OTHER ENTITY CLASSES ---
+// --- PRINCESS DONUT CLASS ---
 class Donut extends Phaser.Physics.Arcade.Sprite {
-  constructor(scene, x, y) { super(scene, x, y, 'donut'); scene.add.existing(this); scene.physics.add.existing(this); this.setCollideWorldBounds(true); this.speed = 170; }
-  follow(targetX, targetY) { const dist = Phaser.Math.Distance.Between(this.x, this.y, targetX, targetY); if (dist > 50) { this.scene.physics.moveTo(this, targetX, targetY, this.speed); } else { this.body.setVelocity(0, 0); } }
+  constructor(scene, x, y) {
+    // Reference the loaded spritesheet 'donut_walk' and start on frame 0 (South Idle)
+    super(scene, x, y, 'donut_walk', 0);
+    
+    scene.add.existing(this);
+    scene.physics.add.existing(this);
+    
+    this.setCollideWorldBounds(true);
+    this.body.setSize(18, 14);
+    this.body.setOffset(3, 10);
+
+    this.speed = 170;
+    this.currentDirection = 'south';
+    this.name = "Princess Donut";
+  }
+
+  follow(targetX, targetY) {
+    const dist = Phaser.Math.Distance.Between(this.x, this.y, targetX, targetY);
+    
+    if (dist > 45) {
+      this.scene.physics.moveTo(this, targetX, targetY, this.speed);
+      this.updateAnimation(true);
+    } else {
+      this.body.setVelocity(0, 0);
+      this.updateAnimation(false);
+    }
+  }
+
+  updateAnimation(isMoving) {
+    const vx = this.body.velocity.x;
+    const vy = this.body.velocity.y;
+    let animKey = 'donut_walk_south';
+
+    if (Math.abs(vx) > Math.abs(vy)) {
+      this.currentDirection = (vx > 0) ? 'east' : 'west';
+    } else if (Math.abs(vy) > 0) {
+      this.currentDirection = (vy > 0) ? 'south' : 'north';
+    }
+
+    if (isMoving) {
+      animKey = `donut_walk_${this.currentDirection}`;
+      if (this.anims.currentAnim?.key !== animKey) {
+        this.play(animKey, true);
+      }
+    } else {
+      this.anims.stop();
+      switch(this.currentDirection) {
+        case 'south': this.setFrame(0); break;
+        case 'east':  this.setFrame(4); break;
+        case 'north': this.setFrame(8); break;
+        case 'west':  this.setFrame(12); break;
+      }
+    }
+  }
 }
 
+// --- OTHER ENTITY CLASSES ---
 class Enemy extends Phaser.Physics.Arcade.Sprite {
-  constructor(scene, x, y, textureKey, name, hp, damage) { super(scene, x, y, textureKey); scene.add.existing(this); scene.physics.add.existing(this); this.name = name; this.hp = hp; this.damage = damage; this.setCollideWorldBounds(true); }
-  takeDamage(amount) { this.hp -= amount; if (this.hp <= 0) { this.destroy(); return true; } return false; }
+  constructor(scene, x, y, textureKey, name, hp, damage) {
+    super(scene, x, y, textureKey);
+    scene.add.existing(this);
+    scene.physics.add.existing(this);
+    this.name = name;
+    this.hp = hp;
+    this.damage = damage;
+    this.setCollideWorldBounds(true);
+  }
+  takeDamage(amount) {
+    this.hp -= amount;
+    if (this.hp <= 0) {
+      this.destroy();
+      return true;
+    }
+    return false;
+  }
 }
 
 class Mordecai extends Phaser.Physics.Arcade.Sprite {
-  constructor(scene, x, y) { super(scene, x, y, 'mordecai'); scene.add.existing(this); scene.physics.add.existing(this); this.setImmovable(true); this.name = "Mordecai"; this.dialogueIndex = 0; this.quotes = ["Listen to me, Carl. Do NOT touch glowing objects.", "Put on a good show for the Syndicate AI.", "Donut, stop drinking the health potions."]; }
-  getAdvice() { const advice = this.quotes[this.dialogueIndex % this.quotes.length]; this.dialogueIndex++; return advice; }
+  constructor(scene, x, y) {
+    super(scene, x, y, 'mordecai');
+    scene.add.existing(this);
+    scene.physics.add.existing(this);
+    this.setImmovable(true);
+    this.name = "Mordecai";
+    this.dialogueIndex = 0;
+    this.quotes = [
+      "Listen to me, Carl. Do NOT touch anything glowing without identifying it first.",
+      "The Syndicate AI loves drama. Put on a good show or floor two will kill you both.",
+      "Donut, please stop drinking the health potions. Those are for combat emergencies."
+    ];
+  }
+  getAdvice() {
+    const advice = this.quotes[this.dialogueIndex % this.quotes.length];
+    this.dialogueIndex++;
+    return advice;
+  }
 }
 
 // --- MAIN GAME SCENE ---
@@ -94,30 +178,34 @@ class DungeonScene extends Phaser.Scene {
   }
 
   preload() {
-    // 1. Load Carl's PNG Spritesheet from assets folder (32x64 frame size)
+    // 1. Load External Spritesheets from assets/ folder
     this.load.spritesheet('carl_walk', 'assets/carl_walk.png', { frameWidth: 32, frameHeight: 64 });
+    this.load.spritesheet('donut_walk', 'assets/donut_walk.png', { frameWidth: 24, frameHeight: 24 });
 
-    // Procedural Floor, Wall, and Entity textures
+    // Procedural Floor, Wall, and Placeholder Textures
     const g = this.make.graphics({ x: 0, y: 0, add: false });
     
-    // Spooky Rock Floor
-    g.fillStyle(0x15141c, 1); g.fillRect(0, 0, 48, 48); g.lineStyle(1, 0x08070a, 1); g.beginPath(); g.moveTo(10, 0); g.lineTo(18, 22); g.lineTo(38, 44); g.strokePath(); g.generateTexture('floor', 48, 48); g.clear();
+    // Spooky Dungeon Floor Texture
+    g.fillStyle(0x15141c, 1); g.fillRect(0, 0, 48, 48);
+    g.lineStyle(1, 0x08070a, 1); g.beginPath(); g.moveTo(10, 0); g.lineTo(18, 22); g.lineTo(38, 44); g.strokePath();
+    g.generateTexture('floor', 48, 48); g.clear();
     
-    // Dungeon Wall
-    g.fillStyle(0x282633, 1); g.fillRect(0, 0, 48, 48); g.lineStyle(2, 0x14131a, 1); g.strokeRect(0, 0, 48, 48); g.generateTexture('wall', 48, 48); g.clear();
+    // Dungeon Wall Texture
+    g.fillStyle(0x282633, 1); g.fillRect(0, 0, 48, 48);
+    g.lineStyle(2, 0x14131a, 1); g.strokeRect(0, 0, 48, 48);
+    g.generateTexture('wall', 48, 48); g.clear();
     
-    // Companions & Mobs
-    g.fillStyle(0xffffff, 1); g.fillCircle(12, 12, 8); g.fillStyle(0xff88cc, 1); g.fillRect(7, 2, 10, 4); g.generateTexture('donut', 24, 24); g.clear();
+    // Goblin, Mordecai, and Projectile Shapes
     g.fillStyle(0x44cc44, 1); g.fillRect(0, 0, 24, 24); g.generateTexture('goblin', 24, 24); g.clear();
     g.fillStyle(0x8b5a2b, 1); g.fillRect(0, 0, 28, 28); g.generateTexture('mordecai', 28, 28); g.clear();
     g.fillStyle(0x00e5ff, 1); g.fillCircle(6, 6, 6); g.generateTexture('missile', 12, 12); g.clear();
   }
 
   create() {
-    // Prevent default browser context menu
+    // Disable standard browser right-click menu
     this.game.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
-    // 2. Define Directional Animations for Carl
+    // 2. Define Animations (Carl)
     this.anims.create({
       key: 'carl_walk_south',
       frames: this.anims.generateFrameNumbers('carl_walk', { start: 1, end: 3 }),
@@ -136,6 +224,28 @@ class DungeonScene extends Phaser.Scene {
     this.anims.create({
       key: 'carl_walk_west',
       frames: this.anims.generateFrameNumbers('carl_walk', { start: 13, end: 15 }),
+      frameRate: 8, repeat: -1
+    });
+
+    // 3. Define Animations (Donut)
+    this.anims.create({
+      key: 'donut_walk_south',
+      frames: this.anims.generateFrameNumbers('donut_walk', { start: 1, end: 3 }),
+      frameRate: 8, repeat: -1
+    });
+    this.anims.create({
+      key: 'donut_walk_east',
+      frames: this.anims.generateFrameNumbers('donut_walk', { start: 5, end: 7 }),
+      frameRate: 8, repeat: -1
+    });
+    this.anims.create({
+      key: 'donut_walk_north',
+      frames: this.anims.generateFrameNumbers('donut_walk', { start: 9, end: 11 }),
+      frameRate: 8, repeat: -1
+    });
+    this.anims.create({
+      key: 'donut_walk_west',
+      frames: this.anims.generateFrameNumbers('donut_walk', { start: 13, end: 15 }),
       frameRate: 8, repeat: -1
     });
 
@@ -158,10 +268,11 @@ class DungeonScene extends Phaser.Scene {
       }
     }
 
-    // Spawn Player, Companions, and Enemies
+    // Spawn Characters
     this.carl = new Carl(this, this.tileSize * 2.5, this.tileSize * 2.5);
     this.donut = new Donut(this, this.tileSize * 2, this.tileSize * 2.5);
     this.mordecai = new Mordecai(this, this.tileSize * 4, this.tileSize * 2.5);
+    
     const goblin = new Enemy(this, this.tileSize * 8, this.tileSize * 4, 'goblin', 'Goblin Scavenger', 30, 5);
     this.enemies.add(goblin);
 
@@ -171,15 +282,16 @@ class DungeonScene extends Phaser.Scene {
     this.physics.add.collider(this.mordecai, this.walls);
     this.physics.add.collider(this.enemies, this.walls);
 
-    // Camera Settings (Locked on Carl, Zoomed in 2.2x for claustrophobic dungeon feel)
+    // Camera (Lock on Carl, Zoomed in 2.2x for claustrophobic dungeon view)
     this.cameras.main.setBounds(0, 0, this.mapCols * this.tileSize, this.mapRows * this.tileSize);
     this.cameras.main.startFollow(this.carl, true, 0.1, 0.1);
     this.cameras.main.setZoom(2.2);
 
-    this.targetX = this.carl.x; this.targetY = this.carl.y;
+    this.targetX = this.carl.x;
+    this.targetY = this.carl.y;
     this.donutCooldown = 0;
 
-    // Pointer Input (Left-click to move, Right-click for menu)
+    // Click Input Handler
     this.input.on('pointerdown', (pointer) => {
       if (pointer.rightButtonDown() || pointer.button === 2) {
         this.handleRightClick(pointer);
@@ -195,7 +307,7 @@ class DungeonScene extends Phaser.Scene {
     this.carl.moveToTarget(this.targetX, this.targetY);
     this.donut.follow(this.carl.x, this.carl.y);
 
-    // Donut Combat AI
+    // Donut Auto Combat AI
     if (this.donutCooldown <= 0) {
       this.enemies.getChildren().forEach(enemy => {
         const range = Phaser.Math.Distance.Between(this.donut.x, this.donut.y, enemy.x, enemy.y);
@@ -206,14 +318,18 @@ class DungeonScene extends Phaser.Scene {
           logMessage(`DONUT: "TAKE THIS, YOU BRUTE!"`, 'donut-msg');
         }
       });
-    } else { this.donutCooldown--; }
+    } else {
+      this.donutCooldown--;
+    }
 
-    // Projectile Hits
+    // Projectile Overlap with Enemies
     this.physics.add.overlap(this.projectiles, this.enemies, (missile, enemy) => {
       missile.destroy();
       const defeated = enemy.takeDamage(15);
       logMessage(`[Magic Missile] hit ${enemy.name} for 15 damage!`, 'combat-msg');
-      if (defeated) { logMessage(`${enemy.name} was obliterated!`, 'sys-msg'); }
+      if (defeated) {
+        logMessage(`${enemy.name} was obliterated!`, 'sys-msg');
+      }
     });
   }
 
@@ -222,43 +338,73 @@ class DungeonScene extends Phaser.Scene {
     const worldX = pointer.worldX; 
     const worldY = pointer.worldY;
 
+    // Check Right-Click on Princess Donut
+    const donutBounds = new Phaser.Geom.Rectangle(this.donut.x - 12, this.donut.y - 12, 24, 24);
+    if (donutBounds.contains(worldX, worldY)) {
+      this.addMenuOption("Examine Princess Donut", () => {
+        logMessage(`[EXAMINE]: Princess Donut - Level 1 Grand Champion Persian Cat. She is wearing a pink sequined collar and a tiny ruby tiara.`, 'donut-msg');
+      });
+      this.addMenuOption("Talk to Donut", () => {
+        logMessage(`DONUT: "CARL! THIS FLOOR IS FILTHY! WHY ARE THERE NO CARPETS?!"`, 'donut-msg');
+      });
+    }
+
+    // Check Right-Click on Mordecai
     const mordecaiBounds = new Phaser.Geom.Rectangle(this.mordecai.x - 14, this.mordecai.y - 14, 28, 28);
-    if (mordecaiBounds.contains(worldX, worldY)) { 
-      this.addMenuOption("Talk to Mordecai", () => { logMessage(`MORDECAI: "${this.mordecai.getAdvice()}"`, 'sys-msg'); }); 
+    if (mordecaiBounds.contains(worldX, worldY)) {
+      this.addMenuOption("Talk to Mordecai", () => {
+        logMessage(`MORDECAI: "${this.mordecai.getAdvice()}"`, 'sys-msg');
+      });
     }
 
+    // Check Right-Click on Enemies
     const clickedEnemy = this.enemies.getChildren().find(e => e.getBounds().contains(worldX, worldY));
-    if (clickedEnemy) { 
-      this.addMenuOption(`Attack ${clickedEnemy.name}`, () => { this.targetX = clickedEnemy.x; this.targetY = clickedEnemy.y; logMessage(`Carl advances on ${clickedEnemy.name}!`, 'combat-msg'); }); 
+    if (clickedEnemy) {
+      this.addMenuOption(`Attack ${clickedEnemy.name}`, () => {
+        this.targetX = clickedEnemy.x;
+        this.targetY = clickedEnemy.y;
+        logMessage(`Carl advances on ${clickedEnemy.name}!`, 'combat-msg');
+      });
     }
 
-    this.addMenuOption("Walk Here", () => { this.targetX = worldX; this.targetY = worldY; });
-    contextMenu.style.left = `${pointer.event.clientX}px`; 
-    contextMenu.style.top = `${pointer.event.clientY}px`; 
+    // Default Walk Here option
+    this.addMenuOption("Walk Here", () => {
+      this.targetX = worldX;
+      this.targetY = worldY;
+    });
+
+    contextMenu.style.left = `${pointer.event.clientX}px`;
+    contextMenu.style.top = `${pointer.event.clientY}px`;
     contextMenu.classList.remove('hidden');
   }
 
-  addMenuOption(text, action) { 
-    const li = document.createElement('li'); 
-    li.textContent = text; 
-    li.addEventListener('click', () => { action(); this.hideContextMenu(); }); 
-    contextOptions.appendChild(li); 
+  addMenuOption(text, action) {
+    const li = document.createElement('li');
+    li.textContent = text;
+    li.addEventListener('click', () => { action(); this.hideContextMenu(); });
+    contextOptions.appendChild(li);
   }
 
-  hideContextMenu() { 
-    contextMenu.classList.add('hidden'); 
+  hideContextMenu() {
+    contextMenu.classList.add('hidden');
   }
 }
 
-// Phaser Game Config
-const config = { 
-  type: Phaser.AUTO, 
-  width: window.innerWidth, 
-  height: window.innerHeight, 
-  backgroundColor: '#08080a', 
-  physics: { default: 'arcade', arcade: { gravity: { y: 0 }, debug: false } }, 
-  scene: DungeonScene, 
-  scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH } 
+// Game Configuration
+const config = {
+  type: Phaser.AUTO,
+  width: window.innerWidth,
+  height: window.innerHeight,
+  backgroundColor: '#08080a',
+  physics: {
+    default: 'arcade',
+    arcade: { gravity: { y: 0 }, debug: false }
+  },
+  scene: DungeonScene,
+  scale: {
+    mode: Phaser.Scale.RESIZE,
+    autoCenter: Phaser.Scale.CENTER_BOTH
+  }
 };
 
 const game = new Phaser.Game(config);
