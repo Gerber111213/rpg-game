@@ -1,33 +1,51 @@
+const logBox = document.getElementById('log-box');
+function logMessage(text, className = '') {
+  const p = document.createElement('p');
+  p.className = className;
+  p.textContent = text;
+  if (logBox) {
+    logBox.appendChild(p);
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+}
+
 export class InventoryManager {
-  constructor(carlMesh, donutMesh) {
-    this.carlMesh = carlMesh;
-    this.donutMesh = donutMesh;
+  constructor() {
+    this.carlCoins = 100;
+    this.carlBag = ['Health Potion (Lesser)', 'Dirty Bandage'];
+    this.donutBag = ['Catnip Potion'];
     
-    this.carlEquipment = { feet: null, torso: 'Leather Vest', mainhand: 'Spiked Club' };
-    this.donutEquipment = { neck: 'Pink Sequined Collar', head: 'Ruby Tiara' };
-    
-    this.carlBag = ['Health Potion (Lesser)', 'Goblin Ear Token', 'Dirty Bandage'];
-    this.donutBag = ['Catnip Potion', 'Fancy Hairbrush'];
+    this.setupUI();
   }
 
-  equipItem(character, slot, itemName) {
-    if (character === 'carl') {
-      this.carlEquipment[slot] = itemName;
-      this.updateCarlVisuals(slot, itemName);
-    } else if (character === 'donut') {
-      this.donutEquipment[slot] = itemName;
-      this.updateDonutVisuals(slot, itemName);
+  setupUI() {
+    this.updateUI();
+  }
+
+  addCoins(amount) {
+    this.carlCoins += amount;
+    logMessage(`[SYNDICATE COIN]: +${amount} coins acquired! Total: ${this.carlCoins} coins.`, 'sys-msg');
+    this.updateUI();
+  }
+
+  addItem(itemString) {
+    this.carlBag.push(itemString);
+    logMessage(`[INVENTORY]: Acquired [${itemString}]!`, 'sys-msg');
+    this.updateUI();
+  }
+
+  updateUI() {
+    // Synchronize UI bag grids if modal exists
+    const carlBagContainer = document.getElementById('carl-bag');
+    if (carlBagContainer) {
+      carlBagContainer.innerHTML = '';
+      this.carlBag.forEach(item => {
+        const slot = document.createElement('div');
+        slot.className = 'bag-slot';
+        slot.title = item;
+        slot.textContent = item.substring(0, 4);
+        carlBagContainer.appendChild(slot);
+      });
     }
-  }
-
-  updateCarlVisuals(slot, item) {
-    if (slot === 'feet' && item) {
-      // Attached boot mesh node onto Carl's model
-      console.log(`[EQUIP]: Attached ${item} to Carl. Barefoot penalty removed!`);
-    }
-  }
-
-  updateDonutVisuals(slot, item) {
-    console.log(`[EQUIP]: Attached ${item} to Donut.`);
   }
 }
