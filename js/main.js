@@ -23,11 +23,12 @@ function logMessage(text, className = '') {
 
 class Game3D {
   constructor() {
+    window.gameInstance = this;
     this.container = document.getElementById('game-container');
     
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x060609);
-    this.scene.fog = new THREE.FogExp2(0x060609, 0.035);
+    this.scene.fog = new THREE.FogExp2(0x060609, 0.03);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -36,10 +37,10 @@ class Game3D {
     this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
     this.cameraOffset = new THREE.Vector3(0, 30, 22);
 
-    const ambientLight = new THREE.AmbientLight(0x222233, 0.4);
+    const ambientLight = new THREE.AmbientLight(0x333344, 0.6);
     this.scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0x444466, 0.3);
+    const dirLight = new THREE.DirectionalLight(0x666688, 0.4);
     dirLight.position.set(20, 40, 20);
     this.scene.add(dirLight);
 
@@ -73,10 +74,11 @@ class Game3D {
     this.mouse = new THREE.Vector2();
 
     this.setupUI();
+    this.setupMinimap();
     this.setupInputs();
     this.clock = new THREE.Clock();
 
-    logMessage(`[SYSTEM AI]: Welcome to Floor 1. Left door leads to Intro/Syndicate Broadcast; Right door leads to the Dungeon World!`, 'sys-msg');
+    logMessage(`[SYSTEM AI]: Welcome to the brightly lit Intro Safe Room. Open the chest or talk to Mordecai!`, 'sys-msg');
 
     this.animate();
   }
@@ -89,6 +91,15 @@ class Game3D {
       <div class="hud-row">HP: <span id="hp-text">100/100</span><div class="hp-bar-container"><div id="player-hp-fill"></div></div></div>
     `;
     document.body.appendChild(hud);
+  }
+
+  setupMinimap() {
+    const container = document.createElement('div');
+    container.id = 'minimap-container';
+    container.innerHTML = `<canvas id="minimap-canvas" width="180" height="180"></canvas>`;
+    document.body.appendChild(container);
+    this.minimapCanvas = document.getElementById('minimap-canvas');
+    this.minimapCtx = this.minimapCanvas.getContext('2d');
   }
 
   updateHUD() {
@@ -131,7 +142,30 @@ class Game3D {
       this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
       this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
       this.raycaster.setFromCamera(this.mouse, this.camera);
-      
+
+      // Check Mordecai Click
+      const mordecaiIntersect = this.raycaster.intersectObject(this.mordecai.group, true);
+      if (mordecaiIntersect.length > 0) {
+        if (this.carl.getPosition().distanceTo(this.mordecai.getPosition()) < 5.0) {
+          this.showMordecaiDialogue();
+          return;
+        } else {
+          logMessage(`Get closer to Mordecai to speak with him.`, 'sys-msg');
+        }
+      }
+
+      // Check Tutorial Chest Click
+      if (this.mapData.tutorialChest) {
+        const chestDist = this.carl.getPosition().distanceTo(this.mapData.tutorialChest);
+        if (chestDist < 3.0) {
+          const modal = document.getElementById('inventory-modal');
+          if (modal) modal.classList.remove('hidden');
+          logMessage(`[TUTORIAL CHEST]: Opened inventory! Items are stored in a Diablo-style grid. Drag or click items to manage gear.`, 'sys-msg');
+          return;
+        }
+      }
+
+      // Check Monster Click
       const monsterMeshes = this.monsters.map(m => m.torso);
       const hitMonsters = this.raycaster.intersectObjects(monsterMeshes);
       
@@ -142,12 +176,11 @@ class Game3D {
           const dist = this.carl.getPosition().distanceTo(targetMonster.group.position);
           if (dist < 5.0) {
             this.audio.playSlash();
-            this.showAttackSlash(targetMonster.group.position);
-            const defeated = targetMonster.takeDamage(25);
+            const defeated = targetMonster.type === 'Rage Ibis' ? targetMonster.takeDamage(25) : targetMonster.takeDamage(25);
             logMessage(`CARL strikes ${targetMonster.name} for 25 damage!`, 'combat-msg');
             if (defeated) {
               this.combat.handleCorpseCollapse(targetMonster);
-              logMessage(`${targetMonster.name} was obliterated! Corpse ready for looting.`, 'sys-msg');
+              logMessage(`${targetMonster.name} was obliterated! Right-click corpse to loot.`, 'sys-msg');
             }
           } else {
             logMessage(`Target too far away for melee strike.`, 'sys-msg');
@@ -162,22 +195,9 @@ class Game3D {
         const modal = document.getElementById('inventory-modal');
         if (modal) modal.classList.toggle('hidden');
       }
-      if (e.key === '1') {
-        const liveMonsters = this.monsters.filter(m => !m.isDead);
-        if (liveMonsters.length > 0) {
-          const nearest = liveMonsters.reduce((prev, curr) => 
-            prev.group.position.distanceTo(this.carl.getPosition()) < curr.group.position.distanceTo(this.carl.getPosition()) ? prev : curr
-          );
-          if (nearest.group.position.distanceTo(this.carl.getPosition()) < 16.0) {
-            this.audio.playShoot();
-            const defeated = nearest.takeDamage(40);
-            logMessage(`CARL casts MAGIC MISSILE! 40 arcane damage dealt to ${nearest.name}!`, 'combat-msg');
-            if (defeated) {
-              this.combat.handleCorpseCollapse(nearest);
-              logMessage(`${nearest.name} was obliterated by magic!`, 'sys-msg');
-            }
-          }
-        }
+      if (e.key === '1' || e.key === 'q' || e.key === 'Q') {
+        const potion = this.inventory.belt[0];
+        if (potion) this.usePotion(potion);
       }
     });
 
@@ -197,7 +217,7 @@ class Game3D {
         if (targetMonster && targetMonster.isDead) {
           this.showContextMenu(e.clientX, e.clientY, [
             {
-              text: `Loot ${targetMonster.name} Corpse`,
+              text: `Loot ${targetMonster.name}`,
               action: () => {
                 const msg = this.combat.lootCorpse(targetMonster);
                 logMessage(msg, 'sys-msg');
@@ -211,35 +231,45 @@ class Game3D {
     });
   }
 
-  showAttackSlash(pos) {
-    const slashGeo = new THREE.RingGeometry(0.5, 0.7, 12);
-    const slashMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
-    const slash = new THREE.Mesh(slashGeo, slashMat);
-    slash.position.copy(pos);
-    slash.position.y += 1.0;
-    slash.rotation.x = Math.PI / 2;
-    this.scene.add(slash);
-
-    setTimeout(() => {
-      this.scene.remove(slash);
-      slash.geometry.dispose();
-      slash.material.dispose();
-    }, 150);
+  usePotion(potion) {
+    if (this.carl.hp < this.carl.maxHp) {
+      this.carl.hp = Math.min(this.carl.maxHp, this.carl.hp + potion.heal);
+      this.audio.playPotion();
+      logMessage(`[ITEM]: Used Health Potion! Restored 50 HP.`, 'sys-msg');
+      this.updateHUD();
+      this.inventory.belt[0] = null;
+      this.inventory.updateUI();
+    } else {
+      logMessage(`HP is already full!`, 'sys-msg');
+    }
   }
 
-  spawnProjectile(fromPos, toPos) {
-    const projGeo = new THREE.SphereGeometry(0.2, 8, 8);
-    const projMat = new THREE.MeshBasicMaterial({ color: 0xff2222 });
-    const proj = new THREE.Mesh(projGeo, projMat);
-    proj.position.copy(fromPos);
-    proj.position.y += 1.0;
-    this.scene.add(proj);
+  showMordecaiDialogue() {
+    const modal = document.getElementById('dialogue-modal');
+    const textEl = document.getElementById('dialogue-text');
+    const optionsEl = document.getElementById('dialogue-options');
+    if (!modal || !textEl || !optionsEl) return;
 
-    this.projectiles.push({
-      mesh: proj,
-      dir: new THREE.Vector3().subVectors(toPos, fromPos).normalize(),
-      speed: 12.0,
-      life: 2.0
+    modal.classList.remove('hidden');
+    textEl.textContent = `"Listen up, Carl. Welcome to Floor 1. Borant Corporation is broadcasting your every move to trillions across the galaxy. Stay alive, keep Donut safe, and watch out for traps."`;
+    
+    optionsEl.innerHTML = `
+      <li data-reply="1">"Mordecai, how do we clear this floor?"</li>
+      <li data-reply="2">"Tell me about Princess Donut's abilities."</li>
+      <li data-reply="3">"Goodbye, Mordecai."</li>
+    `;
+
+    optionsEl.querySelectorAll('li').forEach(li => {
+      li.onclick = (e) => {
+        const reply = e.target.dataset.reply;
+        if (reply === "1") {
+          textEl.textContent = `"You need to make your way through the maze to the furthest room and step onto the glowing stairwell. Good luck."`;
+        } else if (reply === "2") {
+          textEl.textContent = `"Donut is a Persian cat with high charisma and sponsor appeal. She's got her own inventory tab and magical cyan collar!"`;
+        } else {
+          modal.classList.add('hidden');
+        }
+      };
     });
   }
 
@@ -273,6 +303,51 @@ class Game3D {
 
   hideContextMenu() { if (contextMenu) contextMenu.classList.add('hidden'); }
 
+  renderMinimap() {
+    if (!this.minimapCtx) return;
+    const ctx = this.minimapCtx;
+    const width = this.minimapCanvas.width;
+    const height = this.minimapCanvas.height;
+
+    ctx.fillStyle = '#0a0a0f';
+    ctx.fillRect(0, 0, width, height);
+
+    const carlPos = this.carl.getPosition();
+    const scale = 3.5;
+
+    // Draw Monsters (Red dots)
+    for (let m of this.monsters) {
+      if (!m.isDead) {
+        const mPos = m.group.position;
+        const dx = (mPos.x - carlPos.x) * scale + width / 2;
+        const dz = (mPos.z - carlPos.z) * scale + height / 2;
+        if (dx >= 0 && dx <= width && dz >= 0 && dz <= height) {
+          ctx.fillStyle = '#ff4444';
+          ctx.beginPath();
+          ctx.arc(dx, dz, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    // Draw Mordecai (White dot)
+    const mordPos = this.mordecai.getPosition();
+    const mdx = (mordPos.x - carlPos.x) * scale + width / 2;
+    const mdz = (mordPos.z - carlPos.z) * scale + height / 2;
+    if (mdx >= 0 && mdx <= width && mdz >= 0 && mdz <= height) {
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(mdx, mdz, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Draw Carl (Cyan center dot)
+    ctx.fillStyle = '#00ffff';
+    ctx.beginPath();
+    ctx.arc(width / 2, height / 2, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   animate() {
     requestAnimationFrame(() => this.animate());
     const delta = this.clock.getDelta();
@@ -284,36 +359,11 @@ class Game3D {
       m.updateAI(this.carl.getPosition(), delta, {
         onMelee: (dmg) => {
           this.carl.hp = Math.max(0, this.carl.hp - dmg);
-          this.audio.playHit();
           logMessage(`[COMBAT]: ${m.name} strikes Carl for ${dmg} damage!`, 'combat-msg');
           this.updateHUD();
-          if (this.carl.hp <= 0) logMessage(`[FATAL]: Crawler Carl has perished!`, 'sys-msg');
-        },
-        onRanged: (fromPos, toPos) => {
-          this.audio.playShoot();
-          this.spawnProjectile(fromPos, toPos);
         }
       });
       m.updateUI(this.camera);
-    }
-
-    // Update projectiles
-    for (let i = this.projectiles.length - 1; i >= 0; i--) {
-      const p = this.projectiles[i];
-      p.mesh.position.addScaledVector(p.dir, p.speed * delta);
-      p.life -= delta;
-
-      if (p.mesh.position.distanceTo(this.carl.getPosition()) < 1.0) {
-        this.carl.hp = Math.max(0, this.carl.hp - 10);
-        this.audio.playHit();
-        logMessage(`[COMBAT]: Monster projectile hits Carl for 10 damage!`, 'combat-msg');
-        this.updateHUD();
-        this.scene.remove(p.mesh);
-        this.projectiles.splice(i, 1);
-      } else if (p.life <= 0) {
-        this.scene.remove(p.mesh);
-        this.projectiles.splice(i, 1);
-      }
     }
 
     const carlPos = this.carl.getPosition();
@@ -323,7 +373,7 @@ class Game3D {
       for (let door of this.mapData.safeRoomDoors) {
         if (carlPos.distanceTo(door.position) < 3.0) {
           if (door.isIntroDoor) {
-            logMessage(`[SYNDICATE BROADCAST]: "Welcome Crawler! Borant Corporation reminds you that viewer ratings are mandatory for survival!"`, 'sys-msg');
+            logMessage(`[SYNDICATE BROADCAST]: "Welcome Crawler! Borant Corporation reminds you that viewer ratings are mandatory!"`, 'sys-msg');
           } else if (!this.inSafeRoom) {
             this.inSafeRoom = true;
             logMessage(`[SYNDICATE ANNOUNCEMENT]: Entered Safe Room sanctuary.`, 'sys-msg');
@@ -333,8 +383,7 @@ class Game3D {
     }
 
     if (this.mapData.stairwell && carlPos.distanceTo(this.mapData.stairwell) < 2.5) {
-      this.audio.playVictory();
-      logMessage(`[VICTORY]: Level 1 cleared! Advancing to Floor 2...`, 'sys-msg');
+      logMessage(`[VICTORY]: Level 1 cleared!`, 'sys-msg');
       const spawnRoom = this.mapData.rooms[0];
       carlPos.set(spawnRoom.x * 4 + (spawnRoom.w * 2), 0, spawnRoom.y * 4 + (spawnRoom.h * 2));
       this.targetPos.copy(carlPos);
@@ -343,6 +392,7 @@ class Game3D {
     this.camera.position.copy(carlPos).add(this.cameraOffset);
     this.camera.lookAt(carlPos.x, carlPos.y + 1, carlPos.z);
 
+    this.renderMinimap();
     this.renderer.render(this.scene, this.camera);
   }
 }
