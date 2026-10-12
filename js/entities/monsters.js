@@ -8,14 +8,14 @@ export class Monster3D {
     this.isDead = false;
     this.grid = dungeonGrid;
     this.tileSize = 4;
-    this.speed = 3.5;
+    this.speed = 3.0;
     this.attackCooldown = 0;
+    this.rangedCooldown = 0;
 
     this.group = new THREE.Group();
 
-    // --- MATERIALS ---
     const skinMat = new THREE.MeshLambertMaterial({ 
-      color: type === 'Rage Ibis' ? 'Rage Ibis' ? 0xcc2222 : 0x2e7d32 : 0x2e7d32 
+      color: type === 'Rage Ibis' ? 0xcc2222 : 0x2e7d32 
     });
     const detailMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
 
@@ -42,9 +42,7 @@ export class Monster3D {
     this.group.position.set(x, 0, z);
     this.scene.add(this.group);
 
-    // Create Floating UI Health Bar Element
     this.createUIElement();
-
     this.wanderTimer = Math.random() * 3;
     this.wanderDir = new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
   }
@@ -59,16 +57,14 @@ export class Monster3D {
     document.body.appendChild(this.uiElement);
   }
 
-  updateUI(camera, renderer) {
+  updateUI(camera) {
     if (this.isDead || !this.uiElement) {
       if (this.uiElement) this.uiElement.style.display = 'none';
       return;
     }
-
     const pos = this.group.position.clone();
-    pos.y += 2.2; // Above monster head
+    pos.y += 2.2;
     pos.project(camera);
-
     const x = (pos.x *  .5 + .5) * window.innerWidth;
     const y = (pos.y * -.5 + .5) * window.innerHeight;
 
@@ -89,7 +85,7 @@ export class Monster3D {
     return this.grid[row][col] > 0;
   }
 
-  updateAI(carlPos, delta, onAttackCallback) {
+  updateAI(carlPos, delta, callbacks) {
     if (this.isDead) return;
 
     const currentPos = this.group.position;
@@ -97,17 +93,25 @@ export class Monster3D {
 
     let moveDir = new THREE.Vector3();
 
-    if (distToCarl < 14.0) {
+    if (distToCarl < 15.0) {
       moveDir.subVectors(carlPos, currentPos);
       moveDir.y = 0;
       moveDir.normalize();
 
-      // Melee Attack when close to Carl
-      if (distToCarl < 2.0) {
+      // Melee spacing: Stop 1.8 units away so they don't share exact space
+      if (distToCarl <= 1.8) {
+        moveDir.set(0, 0, 0);
         this.attackCooldown -= delta;
         if (this.attackCooldown <= 0) {
-          this.attackCooldown = 1.8; // Attack every 1.8 seconds
-          if (onAttackCallback) onAttackCallback(this.type === 'Rage Ibis' ? 15 : 10);
+          this.attackCooldown = 1.8;
+          if (callbacks.onMelee) callbacks.onMelee(this.type === 'Rage Ibis' ? 15 : 10);
+        }
+      } else {
+        // Ranged projectile attack at distance
+        this.rangedCooldown -= delta;
+        if (this.rangedCooldown <= 0 && distToCarl > 5.0 && distToCarl < 12.0) {
+          this.rangedCooldown = 4.0;
+          if (callbacks.onRanged) callbacks.onRanged(currentPos.clone(), carlPos.clone());
         }
       }
     } else {
@@ -119,14 +123,13 @@ export class Monster3D {
       moveDir.copy(this.wanderDir);
     }
 
-    const step = moveDir.clone().multiplyScalar(this.speed * delta);
-    let nextX = currentPos.x + step.x;
-    let nextZ = currentPos.z + step.z;
+    if (moveDir.length() > 0.01) {
+      const step = moveDir.clone().multiplyScalar(this.speed * delta);
+      let nextX = currentPos.x + step.x;
+      let nextZ = currentPos.z + step.z;
+      if (this.isWalkable(nextX, currentPos.z)) currentPos.x = nextX;
+      if (this.isWalkable(currentPos.x, nextZ)) currentPos.z = nextZ;
 
-    if (this.isWalkable(nextX, currentPos.z)) currentPos.x = nextX;
-    if (this.isWalkable(currentPos.x, nextZ)) currentPos.z = nextZ;
-
-    if (moveDir.length() > 0.1) {
       this.group.lookAt(currentPos.x + moveDir.x, currentPos.y, currentPos.z + moveDir.z);
       const time = Date.now() * 0.01;
       this.leftArm.rotation.x = Math.sin(time) * 0.5;
