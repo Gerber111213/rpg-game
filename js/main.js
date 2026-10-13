@@ -2,10 +2,7 @@ import { AudioManager } from './AudioManager.js';
 import { CombatEngine } from './CombatEngine.js';
 import { DungeonBuilder } from './DungeonBuilder.js';
 import { InventoryManager } from './InventoryManager.js';
-import { Carl3D } from './entities/Carl3D.js';
-import { Donut3D } from './entities/Donut3D.js';
-import { Monster3D } from './entities/Monster3D.js';
-import { Mordecai3D } from './entities/Mordecai3D.js';
+import { Carl3D, Donut3D, Monster3D, Mordecai3D } from './entities.js';
 
 console.log("[SYSTEM AI]: Booting Dungeon Crawler Carl Complete Engine...");
 
@@ -25,24 +22,20 @@ function init() {
     const container = document.getElementById('game-container');
     if (!container) return;
 
-    // 1. Scene & Camera
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x050508);
 
     camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-    // 2. Renderer
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.shadowMap.enabled = true;
     container.appendChild(renderer.domElement);
 
-    // 3. Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
     scene.add(ambientLight);
 
-    // 4. Build Dungeon & Subsystems
     dungeonBuilder = new DungeonBuilder(scene);
     const dungeonData = dungeonBuilder.build();
 
@@ -51,7 +44,6 @@ function init() {
     inventoryManager.game = window;
     combatEngine = new CombatEngine(scene, inventoryManager);
 
-    // Spawn Characters in First Room
     const spawnRoom = dungeonData.rooms[0];
     const spawnX = (spawnRoom.x + Math.floor(spawnRoom.w / 2)) * dungeonBuilder.tileSize;
     const spawnZ = (spawnRoom.y + Math.floor(spawnRoom.h / 2)) * dungeonBuilder.tileSize;
@@ -62,7 +54,6 @@ function init() {
     donut = new Donut3D(scene, spawnX + 2, spawnZ);
     mordecai = new Mordecai3D(scene, spawnX - 2, spawnZ);
 
-    // Spawn Monsters across other rooms
     for (let i = 1; i < dungeonData.rooms.length; i++) {
         if (Math.random() < 0.7) {
             const r = dungeonData.rooms[i];
@@ -73,14 +64,12 @@ function init() {
         }
     }
 
-    // Invisible Floor Plane for Click-and-Hold Raycasting
     const planeGeo = new THREE.PlaneGeometry(500, 500);
     const planeMat = new THREE.MeshBasicMaterial({ visible: false });
     planeMesh = new THREE.Mesh(planeGeo, planeMat);
     planeMesh.rotation.x = -Math.PI / 2;
     scene.add(planeMesh);
 
-    // 5. Event Listeners
     window.addEventListener('resize', onWindowResize);
     window.addEventListener('mousedown', (e) => {
         if (e.target.closest('#hud') || e.target.closest('#inventory-modal') || e.target.closest('#quick-belt') || e.target.closest('#heatmap-container')) return;
@@ -92,7 +81,6 @@ function init() {
     });
     window.addEventListener('mouseup', () => { isMouseDown = false; });
 
-    // Keyboard controls ('I', 'R', 'A')
     window.addEventListener('keydown', (e) => {
         if (e.key === 'i' || e.key === 'I') {
             const modal = document.getElementById('inventory-modal');
