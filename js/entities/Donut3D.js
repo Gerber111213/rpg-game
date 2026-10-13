@@ -2,7 +2,7 @@ export class Donut3D {
   constructor(scene, x, z) {
     this.scene = scene;
     this.name = "Princess Donut";
-    this.speed = 11;
+    this.speed = 9;
 
     this.group = new THREE.Group();
 
