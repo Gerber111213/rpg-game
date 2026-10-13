@@ -16,19 +16,15 @@
   <div id="game-container"></div>
 
   <!-- HUD Overlay -->
-  <div id="hud-overlay">
-    <div class="hud-title">DUNGEON CRAWLER CARL - FLOOR 1</div>
+  <div id="hud">
     <div id="health-bar-container">
-      <span style="font-size: 12px; font-weight: bold; color: #ff3333;">CARL HP:</span>
-      <div class="hp-bar-container" style="flex-grow: 1; background: #222; height: 16px; border-radius: 4px; overflow: hidden; margin: 0 8px; border: 1px solid #444;">
-        <div id="player-hp-fill" style="width: 100%; height: 100%; background: #e74c3c; transition: width 0.3s;"></div>
-      </div>
-      <span id="hp-text" style="font-size: 12px;">100 / 100</span>
+      <div id="carl-hp-bar" class="hp-fill" style="width: 100%;"></div>
+      <span id="hp-text">Carl HP: 100 / 100</span>
     </div>
     
     <!-- Syndicate AI Event Log -->
     <div id="log-box">
-      <p class="sys-msg">[SYSTEM AI]: Floor initialized. Welcome to the crawl, crawler.</p>
+      <p class="sys-msg">[SYSTEM AI]: Initializing 3D Tactical Labyrinth Engine...</p>
     </div>
   </div>
 
@@ -37,7 +33,7 @@
     <div class="inventory-window" id="carl-inventory">
       <h2>Carl's Equipment & Inventory</h2>
       <div class="equipment-slots">
-        <div class="slot" data-slot="feet">Feet: Bare (Barefoot Penalty Active)</div>
+        <div class="slot" data-slot="feet">Feet: Bare (Barefoot Penalty)</div>
         <div class="slot" data-slot="torso">Chest: Leather Vest</div>
         <div class="slot" data-slot="mainhand">Main Hand: Spiked Club</div>
       </div>
