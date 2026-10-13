@@ -1,6 +1,6 @@
 import { AudioManager } from './audioManager.js';
 import { CombatEngine } from './combatEngine.js';
-import { DungeonBuilder } from './dungeonBuilder.js';
+import { DungeonBuilder } from './dungeonbuilder.js';
 import { InventoryManager } from './inventoryManager.js';
 import { Carl3D, Donut3D, Monster3D, Mordecai3D } from './entities.js';
 
