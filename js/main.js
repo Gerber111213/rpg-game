@@ -1,66 +1,137 @@
-// Ensure Three.js is loaded correctly
-console.log("[SYSTEM AI]: Booting 3D Crawler script...");
+import { AudioManager } from './AudioManager.js';
+import { CombatEngine } from './CombatEngine.js';
+import { DungeonBuilder } from './DungeonBuilder.js';
+import { InventoryManager } from './InventoryManager.js';
+import { Carl3D } from './Carl3D.js';
+import { Donut3D } from './Donut3D.js';
+import { Monster3D } from './Monster3D.js';
+import { Mordecai3D } from './Mordecai3D.js';
 
-let scene, camera, renderer, cube;
+console.log("[SYSTEM AI]: Booting Dungeon Crawler Carl Complete Engine...");
+
+let scene, camera, renderer;
+let audioManager, combatEngine, dungeonBuilder, inventoryManager;
+let carl, donut, mordecai;
+let monsters = [];
+let clock = new THREE.Clock();
+
+let isMouseDown = false;
+let targetPosition = new THREE.Vector3();
+let raycaster = new THREE.Raycaster();
+let mouse = new THREE.Vector2();
+let planeMesh;
 
 function init() {
     const container = document.getElementById('game-container');
-    if (!container) {
-        console.error("FATAL: #game-container not found!");
-        return;
-    }
+    if (!container) return;
 
-    // 1. Scene
+    // 1. Scene & Camera
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x111118);
+    scene.background = new THREE.Color(0x050508);
 
-    // 2. Camera (Isometric view looking down at origin)
     camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 10, 10);
-    camera.lookAt(0, 0, 0);
 
-    // 3. Renderer
+    // 2. Renderer
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.shadowMap.enabled = true;
     container.appendChild(renderer.domElement);
 
-    // 4. Lights (Crucial: prevents black screen)
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    // 3. Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
     scene.add(ambientLight);
 
-    const pointLight = new THREE.PointLight(0xffaa00, 1.5, 50);
-    pointLight.position.set(0, 5, 5);
-    scene.add(pointLight);
+    // 4. Build Dungeon & Subsystems
+    dungeonBuilder = new DungeonBuilder(scene);
+    const dungeonData = dungeonBuilder.build();
 
-    // 5. Test Geometry (A glowing red box to represent Carl's starting zone)
-    const geometry = new THREE.BoxGeometry(2, 2, 2);
-    const material = new THREE.MeshStandardMaterial({ color: 0xe74c3c, roughness: 0.3 });
-    cube = new THREE.Mesh(geometry, material);
-    cube.position.y = 1;
-    scene.add(cube);
+    audioManager = new AudioManager();
+    inventoryManager = new InventoryManager();
+    inventoryManager.game = window; // Link for potion belt use
+    combatEngine = new CombatEngine(scene, inventoryManager);
 
-    // Ground plane
-    const planeGeo = new THREE.PlaneGeometry(20, 20);
-    const planeMat = new THREE.MeshStandardMaterial({ color: 0x33333d, roughness: 0.9 });
-    const plane = new THREE.Mesh(planeGeo, planeMat);
-    plane.rotation.x = -Math.PI / 2;
-    scene.add(plane);
+    // Spawn Characters in First Room
+    const spawnRoom = dungeonData.rooms[0];
+    const spawnX = (spawnRoom.x + Math.floor(spawnRoom.w / 2)) * dungeonBuilder.tileSize;
+    const spawnZ = (spawnRoom.y + Math.floor(spawnRoom.h / 2)) * dungeonBuilder.tileSize;
 
-    // 6. Window Resize Handler
+    carl = new Carl3D(scene, spawnX, spawnZ, dungeonData.grid);
+    targetPosition.copy(carl.getPosition());
+
+    donut = new Donut3D(scene, spawnX + 2, spawnZ);
+    mordecai = new Mordecai3D(scene, spawnX - 2, spawnZ);
+
+    // Spawn Monsters across other rooms
+    for (let i = 1; i < dungeonData.rooms.length; i++) {
+        if (Math.random() < 0.7) {
+            const r = dungeonData.rooms[i];
+            const mx = (r.x + Math.floor(r.w / 2)) * dungeonBuilder.tileSize;
+            const mz = (r.y + Math.floor(r.h / 2)) * dungeonBuilder.tileSize;
+            const type = Math.random() < 0.5 ? 'Rage Ibis' : 'Goblin Scavenger';
+            monsters.push(new Monster3D(scene, type, mx, mz, dungeonData.grid));
+        }
+    }
+
+    // Invisible Floor Plane for Click-and-Hold Raycasting
+    const planeGeo = new THREE.PlaneGeometry(500, 500);
+    const planeMat = new THREE.MeshBasicMaterial({ visible: false });
+    planeMesh = new THREE.Mesh(planeGeo, planeMat);
+    planeMesh.rotation.x = -Math.PI / 2;
+    scene.add(planeMesh);
+
+    // 5. Event Listeners
     window.addEventListener('resize', onWindowResize);
+    window.addEventListener('mousedown', (e) => {
+        if (e.target.closest('#hud') || e.target.closest('#inventory-modal') || e.target.closest('#quick-belt') || e.target.closest('#heatmap-container')) return;
+        isMouseDown = true;
+        updateMouseTarget(e);
+    });
+    window.addEventListener('mousemove', (e) => {
+        if (isMouseDown) updateMouseTarget(e);
+    });
+    window.addEventListener('mouseup', () => { isMouseDown = false; });
 
-    // 7. Inventory Toggle ('I' key)
+    // Keyboard controls ('I', 'R', 'A')
     window.addEventListener('keydown', (e) => {
         if (e.key === 'i' || e.key === 'I') {
             const modal = document.getElementById('inventory-modal');
-            modal.classList.toggle('hidden');
+            if (modal) {
+                modal.classList.toggle('hidden');
+                audioManager.playPotion();
+            }
+        }
+        if (e.key === 'r' || e.key === 'R') {
+            const running = carl.toggleRun();
+            logMessage(`[SYSTEM AI]: Carl is now ${running ? 'RUNNING' : 'WALKING'}.`);
+        }
+        if (e.key === 'a' || e.key === 'A') {
+            audioManager.playSpell();
+            logMessage(`[SYSTEM AI]: Carl activates skill: Crush Counter! Area shockwave unleashed.`);
+            monsters.forEach(m => {
+                if (!m.isDead && m.group.position.distanceTo(carl.getPosition()) < 6.0) {
+                    const killed = m.takeDamage(25);
+                    if (killed) {
+                        combatEngine.handleCorpseCollapse(m);
+                        logMessage(`[SYSTEM AI]: Defeated ${m.name}! Corpse salvageable.`);
+                    }
+                }
+            });
         }
     });
 
-    // Start render loop
     animate();
-    console.log("[SYSTEM AI]: Engine active. Press 'I' for inventory.");
+    logMessage("[SYSTEM AI]: Engine initialized successfully.");
+}
+
+function updateMouseTarget(e) {
+    mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObject(planeMesh);
+    if (intersects.length > 0) {
+        targetPosition.copy(intersects[0].point);
+    }
 }
 
 function onWindowResize() {
@@ -69,16 +140,106 @@ function onWindowResize() {
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
+// Global Potion Belt Action
+window.usePotion = function(item, index) {
+    if (item.type === 'potion') {
+        carl.heal(item.heal);
+        inventoryManager.removeItem('carl', index);
+        audioManager.playPotion();
+        logMessage(`[SYSTEM AI]: Carl consumed ${item.name} and recovered 50 HP.`);
+    }
+};
+
+// Context Menu Action for Looting Corpses
+window.showContextMenu = function(x, y, item, bagName, index) {
+    const menu = document.getElementById('context-menu');
+    const options = document.getElementById('context-options');
+    options.innerHTML = `<li>Use / Equip</li><li>Drop Item</li>`;
+    menu.style.left = `${x}px`;
+    menu.style.top = `${y}px`;
+    menu.classList.remove('hidden');
+
+    const closeMenu = () => {
+        menu.classList.add('hidden');
+        window.removeEventListener('click', closeMenu);
+    };
+    setTimeout(() => window.addEventListener('click', closeMenu), 10);
+};
+
+function logMessage(text) {
+    const box = document.getElementById('log-box');
+    if (box) {
+        const p = document.createElement('p');
+        p.className = 'sys-msg';
+        p.textContent = text;
+        box.appendChild(p);
+        box.scrollTop = box.scrollHeight;
+    }
+}
+
+function drawHeatmap() {
+    const canvas = document.getElementById('heatmap-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#0a0a0f';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const carlPos = carl.getPosition();
+    const scale = 1.2;
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+
+    // Draw Carl (Cyan Dot)
+    ctx.fillStyle = '#00ffcc';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw Monsters (Red Dots)
+    monsters.forEach(m => {
+        if (!m.isDead) {
+            const mPos = m.group.position;
+            const dx = (mPos.x - carlPos.x) * scale;
+            const dz = (mPos.z - carlPos.z) * scale;
+            ctx.fillStyle = '#e74c3c';
+            ctx.beginPath();
+            ctx.arc(cx + dx, cy + dz, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    });
+}
+
 function animate() {
     requestAnimationFrame(animate);
+    const delta = clock.getDelta();
 
-    // Subtle rotation to prove the render loop is running
-    if (cube) {
-        cube.rotation.y += 0.01;
+    // Move Carl towards click target
+    if (carl) {
+        carl.moveTo(targetPosition, delta);
+        const carlPos = carl.getPosition();
+
+        // Smooth Camera Follow
+        camera.position.set(carlPos.x, carlPos.y + 16, carlPos.z + 12);
+        camera.lookAt(carlPos);
+
+        // Donut follows Carl
+        if (donut) donut.follow(carlPos, delta);
     }
 
+    // Update Monsters & UI Tags
+    monsters.forEach(m => {
+        m.updateAI(carl.getPosition(), delta, {
+            onMelee: (damage) => {
+                carl.takeDamage(damage);
+                audioManager.playSlash();
+                logMessage(`[SYSTEM AI]: ${m.name} hit Carl for ${damage} damage!`);
+            }
+        });
+        m.updateUI(camera);
+    });
+
+    drawHeatmap();
     renderer.render(scene, camera);
 }
 
-// Initialize on load
 init();
