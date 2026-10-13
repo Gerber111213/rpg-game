@@ -8,8 +8,9 @@ export class Monster3D {
     this.isDead = false;
     this.grid = dungeonGrid;
     this.tileSize = 4;
-    this.speed = 3.0;
+    this.speed = 2.5;
     this.attackCooldown = 0;
+    this.corpseLoot = null;
 
     this.group = new THREE.Group();
 
@@ -89,12 +90,11 @@ export class Monster3D {
 
     let moveDir = new THREE.Vector3();
 
-    if (distToCarl < 15.0) {
+    if (distToCarl < 16.0) {
       moveDir.subVectors(carlPos, currentPos);
       moveDir.y = 0;
       moveDir.normalize();
 
-      // Stop short of Carl for clean melee spacing (1.8 units away)
       if (distToCarl <= 1.8) {
         moveDir.set(0, 0, 0);
         this.attackCooldown -= delta;
@@ -135,7 +135,10 @@ export class Monster3D {
       this.isDead = true;
       this.group.rotation.x = Math.PI / 2;
       this.group.position.y = 0.2;
-      if (this.uiElement) this.uiElement.style.display = 'none';
+      if (this.uiElement) {
+        this.uiElement.remove();
+        this.uiElement = null;
+      }
       return true;
     }
     return false;
