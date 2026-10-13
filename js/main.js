@@ -1,7 +1,7 @@
-import { AudioManager } from './audioManager.js';
-import { CombatEngine } from './combatEngine.js';
+import { AudioManager } from './audiomanager.js';
+import { CombatEngine } from './combatengine.js';
 import { DungeonBuilder } from './dungeonbuilder.js';
-import { InventoryManager } from './inventoryManager.js';
+import { InventoryManager } from './inventorymanager.js';
 import { Carl3D, Donut3D, Monster3D, Mordecai3D } from './entities.js';
 
 console.log("[SYSTEM AI]: Booting Dungeon Crawler Carl Complete Engine...");
@@ -22,28 +22,33 @@ function init() {
     const container = document.getElementById('game-container');
     if (!container) return;
 
+    // 1. Scene & Camera
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x050508);
 
     camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
 
+    // 2. Renderer
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.shadowMap.enabled = true;
     container.appendChild(renderer.domElement);
 
+    // 3. Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
     scene.add(ambientLight);
 
+    // 4. Build Dungeon & Subsystems
     dungeonBuilder = new DungeonBuilder(scene);
     const dungeonData = dungeonBuilder.build();
 
     audioManager = new AudioManager();
     inventoryManager = new InventoryManager();
-    inventoryManager.game = window;
+    inventoryManager.game = window; // Link for potion belt use
     combatEngine = new CombatEngine(scene, inventoryManager);
 
+    // Spawn Characters in First Room
     const spawnRoom = dungeonData.rooms[0];
     const spawnX = (spawnRoom.x + Math.floor(spawnRoom.w / 2)) * dungeonBuilder.tileSize;
     const spawnZ = (spawnRoom.y + Math.floor(spawnRoom.h / 2)) * dungeonBuilder.tileSize;
@@ -54,6 +59,7 @@ function init() {
     donut = new Donut3D(scene, spawnX + 2, spawnZ);
     mordecai = new Mordecai3D(scene, spawnX - 2, spawnZ);
 
+    // Spawn Monsters across other rooms
     for (let i = 1; i < dungeonData.rooms.length; i++) {
         if (Math.random() < 0.7) {
             const r = dungeonData.rooms[i];
@@ -64,14 +70,19 @@ function init() {
         }
     }
 
+    // Invisible Floor Plane for Click-and-Hold Raycasting
     const planeGeo = new THREE.PlaneGeometry(500, 500);
     const planeMat = new THREE.MeshBasicMaterial({ visible: false });
     planeMesh = new THREE.Mesh(planeGeo, planeMat);
     planeMesh.rotation.x = -Math.PI / 2;
     scene.add(planeMesh);
 
+    // 5. Event Listeners
     window.addEventListener('resize', onWindowResize);
+    
+    // Left-Click and Hold to Walk
     window.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return; // Only left-click
         if (e.target.closest('#hud') || e.target.closest('#inventory-modal') || e.target.closest('#quick-belt') || e.target.closest('#heatmap-container')) return;
         isMouseDown = true;
         updateMouseTarget(e);
@@ -81,6 +92,34 @@ function init() {
     });
     window.addEventListener('mouseup', () => { isMouseDown = false; });
 
+    // Right-Click to Loot Monster Corpses
+    window.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        if (e.target.closest('#hud') || e.target.closest('#inventory-modal') || e.target.closest('#quick-belt') || e.target.closest('#heatmap-container')) return;
+
+        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+
+        const deadMonsters = monsters.filter(m => m.isDead && m.group);
+        const monsterMeshes = deadMonsters.map(m => m.group);
+        const intersects = raycaster.intersectObjects(monsterMeshes, true);
+
+        if (intersects.length > 0) {
+            let hitGroup = intersects[0].object;
+            while (hitGroup.parent && !monsters.some(m => m.group === hitGroup)) {
+                hitGroup = hitGroup.parent;
+            }
+
+            const targetMonster = monsters.find(m => m.group === hitGroup);
+            if (targetMonster && targetMonster.isDead) {
+                const message = combatEngine.lootCorpse(targetMonster);
+                logMessage(`[SYSTEM AI]: ${message}`);
+            }
+        }
+    });
+
+    // Keyboard controls ('I', 'R', 'A')
     window.addEventListener('keydown', (e) => {
         if (e.key === 'i' || e.key === 'I') {
             const modal = document.getElementById('inventory-modal');
@@ -101,7 +140,7 @@ function init() {
                     const killed = m.takeDamage(25);
                     if (killed) {
                         combatEngine.handleCorpseCollapse(m);
-                        logMessage(`[SYSTEM AI]: Defeated ${m.name}! Corpse salvageable.`);
+                        logMessage(`[SYSTEM AI]: Defeated ${m.name}! Corpse salvageable. Right-click body to loot.`);
                     }
                 }
             });
@@ -175,11 +214,13 @@ function drawHeatmap() {
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
 
+    // Draw Carl (Cyan Dot)
     ctx.fillStyle = '#00ffcc';
     ctx.beginPath();
     ctx.arc(cx, cy, 4, 0, Math.PI * 2);
     ctx.fill();
 
+    // Draw Monsters (Red Dots)
     monsters.forEach(m => {
         if (!m.isDead) {
             const mPos = m.group.position;
@@ -197,16 +238,20 @@ function animate() {
     requestAnimationFrame(animate);
     const delta = clock.getDelta();
 
+    // Move Carl towards click target
     if (carl) {
         carl.moveTo(targetPosition, delta);
         const carlPos = carl.getPosition();
 
+        // Smooth Camera Follow
         camera.position.set(carlPos.x, carlPos.y + 16, carlPos.z + 12);
         camera.lookAt(carlPos);
 
+        // Donut follows Carl
         if (donut) donut.follow(carlPos, delta);
     }
 
+    // Update Monsters & UI Tags
     monsters.forEach(m => {
         m.updateAI(carl.getPosition(), delta, {
             onMelee: (damage) => {
