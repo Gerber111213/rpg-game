@@ -1,7 +1,7 @@
-import { AudioManager } from './AudioManager.js';
-import { CombatEngine } from './CombatEngine.js';
-import { DungeonBuilder } from './DungeonBuilder.js';
-import { InventoryManager } from './InventoryManager.js';
+import { AudioManager } from './audioManager.js';
+import { CombatEngine } from './combatEngine.js';
+import { DungeonBuilder } from './dungeonBuilder.js';
+import { InventoryManager } from './inventoryManager.js';
 import { Carl3D, Donut3D, Monster3D, Mordecai3D } from './entities.js';
 
 console.log("[SYSTEM AI]: Booting Dungeon Crawler Carl Complete Engine...");
