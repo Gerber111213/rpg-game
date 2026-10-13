@@ -2,10 +2,10 @@ import { AudioManager } from './AudioManager.js';
 import { CombatEngine } from './CombatEngine.js';
 import { DungeonBuilder } from './DungeonBuilder.js';
 import { InventoryManager } from './InventoryManager.js';
-import { Carl3D } from './Carl3D.js';
-import { Donut3D } from './Donut3D.js';
-import { Monster3D } from './Monster3D.js';
-import { Mordecai3D } from './Mordecai3D.js';
+import { Carl3D } from './entities/Carl3D.js';
+import { Donut3D } from './entities/Donut3D.js';
+import { Monster3D } from './entities/Monster3D.js';
+import { Mordecai3D } from './entities/Mordecai3D.js';
 
 console.log("[SYSTEM AI]: Booting Dungeon Crawler Carl Complete Engine...");
 
@@ -48,7 +48,7 @@ function init() {
 
     audioManager = new AudioManager();
     inventoryManager = new InventoryManager();
-    inventoryManager.game = window; // Link for potion belt use
+    inventoryManager.game = window;
     combatEngine = new CombatEngine(scene, inventoryManager);
 
     // Spawn Characters in First Room
@@ -140,7 +140,6 @@ function onWindowResize() {
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-// Global Potion Belt Action
 window.usePotion = function(item, index) {
     if (item.type === 'potion') {
         carl.heal(item.heal);
@@ -150,7 +149,6 @@ window.usePotion = function(item, index) {
     }
 };
 
-// Context Menu Action for Looting Corpses
 window.showContextMenu = function(x, y, item, bagName, index) {
     const menu = document.getElementById('context-menu');
     const options = document.getElementById('context-options');
@@ -189,13 +187,11 @@ function drawHeatmap() {
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
 
-    // Draw Carl (Cyan Dot)
     ctx.fillStyle = '#00ffcc';
     ctx.beginPath();
     ctx.arc(cx, cy, 4, 0, Math.PI * 2);
     ctx.fill();
 
-    // Draw Monsters (Red Dots)
     monsters.forEach(m => {
         if (!m.isDead) {
             const mPos = m.group.position;
@@ -213,20 +209,16 @@ function animate() {
     requestAnimationFrame(animate);
     const delta = clock.getDelta();
 
-    // Move Carl towards click target
     if (carl) {
         carl.moveTo(targetPosition, delta);
         const carlPos = carl.getPosition();
 
-        // Smooth Camera Follow
         camera.position.set(carlPos.x, carlPos.y + 16, carlPos.z + 12);
         camera.lookAt(carlPos);
 
-        // Donut follows Carl
         if (donut) donut.follow(carlPos, delta);
     }
 
-    // Update Monsters & UI Tags
     monsters.forEach(m => {
         m.updateAI(carl.getPosition(), delta, {
             onMelee: (damage) => {
