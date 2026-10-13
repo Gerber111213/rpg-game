@@ -5,6 +5,7 @@ export class CombatEngine {
   }
 
   handleCorpseCollapse(monster) {
+    // Drop a guaranteed health potion or random gear on death
     monster.corpseLoot = {
       name: "Health Potion",
       icon: "🧪",
@@ -24,6 +25,6 @@ export class CombatEngine {
       }
       return `Inventory is full!`;
     }
-    return `Corpse already looted.`;
+    return `Corpse already looted or empty.`;
   }
 }
