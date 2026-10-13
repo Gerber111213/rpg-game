@@ -3,8 +3,8 @@ export class Carl3D {
     this.scene = scene;
     this.hp = 100;
     this.maxHp = 100;
-    this.walkSpeed = 6;
-    this.runSpeed = 12;
+    this.walkSpeed = 5;
+    this.runSpeed = 10;
     this.speed = this.walkSpeed;
     this.isRunning = false;
     this.name = "Carl";
@@ -56,6 +56,11 @@ export class Carl3D {
     this.rightLeg = new THREE.Mesh(legGeo, skinMat);
     this.rightLeg.position.set(0.18, -1.2, 0);
     this.torso.add(this.rightLeg);
+
+    // Carl's Personal Headlight attached directly to him
+    this.headlight = new THREE.PointLight(0xfffaee, 4.0, 20);
+    this.headlight.position.set(0, 2.5, 1);
+    this.group.add(this.headlight);
 
     this.group.position.set(x, 0, z);
     this.scene.add(this.group);
@@ -115,5 +120,23 @@ export class Carl3D {
       this.leftLeg.rotation.x = 0;
       this.rightLeg.rotation.x = 0;
     }
+  }
+
+  takeDamage(amt) {
+    this.hp = Math.max(0, this.hp - amt);
+    const pct = (this.hp / this.maxHp) * 100;
+    const fill = document.getElementById('carl-hp-bar');
+    const text = document.getElementById('hp-text');
+    if (fill) fill.style.width = `${pct}%`;
+    if (text) text.textContent = `Carl HP: ${this.hp} / ${this.maxHp}`;
+  }
+
+  heal(amt) {
+    this.hp = Math.min(this.maxHp, this.hp + amt);
+    const pct = (this.hp / this.maxHp) * 100;
+    const fill = document.getElementById('carl-hp-bar');
+    const text = document.getElementById('hp-text');
+    if (fill) fill.style.width = `${pct}%`;
+    if (text) text.textContent = `Carl HP: ${this.hp} / ${this.maxHp}`;
   }
 }
