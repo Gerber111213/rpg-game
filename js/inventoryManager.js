@@ -1,4 +1,4 @@
-export class inventoryManager {
+export class InventoryManager {
   constructor(gameInstance) {
     this.game = gameInstance;
     this.carlBag = Array(12).fill(null);
