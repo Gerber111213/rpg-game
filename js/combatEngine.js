@@ -1,4 +1,4 @@
-export class CombatEngine {
+export class combatEngine {
   constructor(scene, inventory) {
     this.scene = scene;
     this.inventory = inventory;
