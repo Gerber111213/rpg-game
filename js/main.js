@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { AudioManager } from './audioManager.js';
 import { CombatEngine } from './combatEngine.js';
 import { DungeonBuilder } from './dungeonBuilder.js';
