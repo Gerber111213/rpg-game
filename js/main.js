@@ -3,12 +3,14 @@ import { AudioManager } from './audioManager.js';
 import { CombatEngine } from './combatEngine.js';
 import { DungeonBuilder } from './dungeonBuilder.js';
 import { InventoryManager } from './inventoryManager.js';
-import { Carl3D, Donut3D, Monster3D, Mordecai3D } from './entities.js';
+import { Carl3D, Donut3D, Mordecai3D } from './entities.js';
+import { Monster3D } from './monster.js';
+import { MinimapManager } from './minimap.js';
 
 console.log("[SYSTEM AI]: Booting Dungeon Crawler Carl Complete Engine...");
 
 let scene, camera, renderer;
-let audioManager, combatEngine, dungeonBuilder, inventoryManager;
+let audioManager, combatEngine, dungeonBuilder, inventoryManager, minimapManager;
 let carl, donut, mordecai;
 let monsters = [];
 let dungeonGrid = [];
@@ -19,9 +21,6 @@ let targetPosition = new THREE.Vector3();
 let raycaster = new THREE.Raycaster();
 let mouse = new THREE.Vector2();
 let planeMesh;
-
-// Visited fog-of-war explored set ("col,row")
-let exploredTiles = new Set();
 
 function init() {
     const container = document.getElementById('game-container');
@@ -51,8 +50,9 @@ function init() {
 
     audioManager = new AudioManager();
     inventoryManager = new InventoryManager();
-    inventoryManager.game = window; // Link for potion belt use
+    inventoryManager.game = window; 
     combatEngine = new CombatEngine(scene, inventoryManager);
+    minimapManager = new MinimapManager();
 
     // Spawn Characters in First Safe Room
     const spawnRoom = dungeonData.rooms[0];
@@ -65,7 +65,7 @@ function init() {
     donut = new Donut3D(scene, spawnX + 2, spawnZ, dungeonGrid);
     mordecai = new Mordecai3D(scene, spawnX - 2, spawnZ);
 
-    // Spawn Monsters across OTHER rooms (Strictly skipping index 0 safe room)
+    // Spawn Monsters across OTHER rooms
     for (let i = 1; i < dungeonData.rooms.length; i++) {
         if (Math.random() < 0.7) {
             const r = dungeonData.rooms[i];
@@ -86,10 +86,9 @@ function init() {
     // 5. Event Listeners
     window.addEventListener('resize', onWindowResize);
     
-    // Left-Click and Hold to Walk
     window.addEventListener('mousedown', (e) => {
         if (carl && carl.isDead) return;
-        if (e.button !== 0) return; // Only left-click
+        if (e.button !== 0) return; 
         if (e.target.closest('#hud') || e.target.closest('#inventory-modal') || e.target.closest('#quick-belt') || e.target.closest('#heatmap-container')) return;
         isMouseDown = true;
         updateMouseTarget(e);
@@ -99,21 +98,18 @@ function init() {
     });
     window.addEventListener('mouseup', () => { isMouseDown = false; });
 
-    // Respawn button setup
     const respawnBtn = document.getElementById('respawn-btn');
     if (respawnBtn) {
         respawnBtn.addEventListener('click', () => {
             const deathModal = document.getElementById('death-modal');
             if (deathModal) deathModal.classList.add('hidden');
             
-            // Teleport Carl back to safe room spawn
             carl.respawn(spawnX, spawnZ);
             targetPosition.copy(carl.getPosition());
             logMessage("[SYSTEM AI]: Resurrected at checkpoint with Mordecai!");
         });
     }
 
-    // Right-Click to Loot Monster Corpses
     window.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         if (e.target.closest('#hud') || e.target.closest('#inventory-modal') || e.target.closest('#quick-belt') || e.target.closest('#heatmap-container')) return;
@@ -140,7 +136,6 @@ function init() {
         }
     });
 
-    // Keyboard controls ('I', 'R', 'A', 'P')
     window.addEventListener('keydown', (e) => {
         if (carl && carl.isDead) return;
 
@@ -242,93 +237,17 @@ function logMessage(text) {
     }
 }
 
-function drawFogOfWarMinimap() {
-    const canvas = document.getElementById('heatmap-canvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#0a0a0f';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    const carlPos = carl.getPosition();
-    const tileSize = dungeonBuilder.tileSize;
-    const carlCol = Math.floor(carlPos.x / tileSize + 0.5);
-    const carlRow = Math.floor(carlPos.z / tileSize + 0.5);
-
-    // Reveal tiles within line-of-sight radius
-    const visionRadius = 8;
-    for (let r = carlRow - visionRadius; r <= carlRow + visionRadius; r++) {
-        for (let c = carlCol - visionRadius; c <= carlCol + visionRadius; c++) {
-            if (r >= 0 && r < dungeonGrid.length && c >= 0 && c < dungeonGrid[0].length) {
-                const dist = Math.hypot(c - carlCol, r - carlRow);
-                if (dist <= visionRadius) {
-                    exploredTiles.add(`${c},${r}`);
-                }
-            }
-        }
-    }
-
-    const scale = 3.5; // Zoom scale for minimap grid
-    const cx = canvas.width / 2;
-    const cy = canvas.height / 2;
-
-    // Render explored dungeon map tiles (Fog of War)
-    exploredTiles.forEach(coordStr => {
-        const [c, r] = coordStr.split(',').map(Number);
-        const tileX = c * tileSize;
-        const tileZ = r * tileSize;
-
-        const dx = (tileX - carlPos.x) * scale;
-        const dz = (tileZ - carlPos.z) * scale;
-
-        if (Math.abs(dx) < canvas.width && Math.abs(dz) < canvas.height) {
-            const tileVal = dungeonGrid[r][c];
-            if (tileVal > 0) {
-                ctx.fillStyle = tileVal === 2 ? '#2e5b75' : '#332b22'; // Safe floor vs standard floor
-            } else {
-                ctx.fillStyle = '#1a1a24'; // Wall
-            }
-            ctx.fillRect(cx + dx - 1.5, cy + dz - 1.5, 3, 3);
-        }
-    });
-
-    // Draw Monsters (Red Dots if explored)
-    monsters.forEach(m => {
-        if (!m.isDead) {
-            const mPos = m.group.position;
-            const mc = Math.floor(mPos.x / tileSize + 0.5);
-            const mr = Math.floor(mPos.z / tileSize + 0.5);
-            if (exploredTiles.has(`${mc},${mr}`)) {
-                const dx = (mPos.x - carlPos.x) * scale;
-                const dz = (mPos.z - carlPos.z) * scale;
-                ctx.fillStyle = '#e74c3c';
-                ctx.beginPath();
-                ctx.arc(cx + dx, cy + dz, 2.5, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-    });
-
-    // Draw Carl (Cyan Dot)
-    ctx.fillStyle = '#00ffcc';
-    ctx.beginPath();
-    ctx.arc(cx, cy, 3.5, 0, Math.PI * 2);
-    ctx.fill();
-}
-
 function animate() {
     requestAnimationFrame(animate);
     const delta = clock.getDelta();
 
-    // Move Carl towards click target
     if (carl) {
         carl.moveTo(targetPosition, delta);
         const carlPos = carl.getPosition();
 
-        // Smooth Camera Follow
         camera.position.set(carlPos.x, carlPos.y + 16, carlPos.z + 12);
         camera.lookAt(carlPos);
 
-        // Donut AI behavior
         if (donut) {
             donut.updateAI(carlPos, monsters, delta, (targetMonster) => {
                 audioManager.playSpell();
@@ -341,7 +260,6 @@ function animate() {
             });
         }
 
-        // Check if Carl died
         if (carl.isDead) {
             const deathModal = document.getElementById('death-modal');
             if (deathModal && deathModal.classList.contains('hidden')) {
@@ -351,7 +269,6 @@ function animate() {
         }
     }
 
-    // Update Monsters & UI Tags
     monsters.forEach(m => {
         m.updateAI(carl.getPosition(), delta, {
             onMelee: (damage) => {
@@ -363,7 +280,11 @@ function animate() {
         m.updateUI(camera);
     });
 
-    drawFogOfWarMinimap();
+    const canvas = document.getElementById('heatmap-canvas');
+    if (canvas && carl) {
+        minimapManager.drawFogOfWar(canvas, carl.getPosition(), dungeonGrid, dungeonBuilder, monsters);
+    }
+
     renderer.render(scene, camera);
 }
 
