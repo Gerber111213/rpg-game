@@ -9,6 +9,7 @@ export class Carl3D {
     this.runSpeed = 10;
     this.speed = this.walkSpeed;
     this.isRunning = false;
+    this.isDead = false;
     this.name = "Carl";
     this.grid = dungeonGrid;
     this.tileSize = 4;
@@ -68,6 +69,7 @@ export class Carl3D {
   }
 
   toggleRun() {
+    if (this.isDead) return false;
     this.isRunning = !this.isRunning;
     this.speed = this.isRunning ? this.runSpeed : this.walkSpeed;
     return this.isRunning;
@@ -84,6 +86,7 @@ export class Carl3D {
   }
 
   moveTo(targetVec, delta) {
+    if (this.isDead) return;
     const currentPos = this.group.position;
     const dir = new THREE.Vector3().subVectors(targetVec, currentPos);
     dir.y = 0;
@@ -124,15 +127,23 @@ export class Carl3D {
   }
 
   takeDamage(amt) {
+    if (this.isDead) return;
     this.hp = Math.max(0, this.hp - amt);
     const pct = (this.hp / this.maxHp) * 100;
     const fill = document.getElementById('carl-hp-bar');
     const text = document.getElementById('hp-text');
     if (fill) fill.style.width = `${pct}%`;
     if (text) text.textContent = `Carl HP: ${this.hp} / ${this.maxHp}`;
+
+    if (this.hp <= 0) {
+      this.isDead = true;
+      this.group.rotation.x = Math.PI / 2;
+      this.group.position.y = 0.2;
+    }
   }
 
   heal(amt) {
+    if (this.isDead) return;
     this.hp = Math.min(this.maxHp, this.hp + amt);
     const pct = (this.hp / this.maxHp) * 100;
     const fill = document.getElementById('carl-hp-bar');
