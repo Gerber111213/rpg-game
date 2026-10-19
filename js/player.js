@@ -1,8 +1,8 @@
 // js/player.js
 const player = {
-    x: 2.5,          // Floating point coordinates for smooth 3D movement
+    x: 2.5,          // Floating-point coordinates for smooth 3D movement
     y: 2.5,
-    angle: 0,        // Facing direction
+    angle: 0,        // Facing direction (radians)
     hp: 100,
     maxHp: 100,
     inventory: [
@@ -11,8 +11,8 @@ const player = {
     ],
     equippedWeapon: 'crowbar',
     skills: [
-        { id: 'taunt', name: 'Primal Scream (Taunt)', cooldown: 0, maxCooldown: 10, desc: 'Draws monster aggro and boosts adrenaline.' },
-        { id: 'dash', name: 'Apartment Hall Sprint', cooldown: 0, maxCooldown: 5, desc: 'Quick burst of movement speed.' }
+        { id: 'taunt', name: 'Primal Scream (Taunt)', cooldown: 0, maxCooldown: 10, desc: 'Draws monster aggro.' },
+        { id: 'dash', name: 'Hall Sprint', cooldown: 0, maxCooldown: 5, desc: 'Quick burst of speed.' }
     ]
 };
 
@@ -21,6 +21,5 @@ function useSkill(skillId) {
     if (skill && skill.cooldown === 0) {
         skill.cooldown = skill.maxCooldown;
         console.log(`Used skill: ${skill.name}`);
-        // Trigger effect logic here
     }
 }
