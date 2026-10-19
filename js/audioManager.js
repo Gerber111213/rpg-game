@@ -1,4 +1,4 @@
-export class AudioManager {
+export class audioManager {
   constructor() {
     this.ctx = null;
     window.addEventListener('click', () => {
