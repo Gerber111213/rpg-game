@@ -1,4 +1,4 @@
-export class DungeonBuilder {
+export class dungeonBuilder {
   constructor(scene) {
     this.scene = scene;
     this.tileSize = 4;
