@@ -263,7 +263,7 @@ function animate() {
         if (carl.isDead) {
             const deathModal = document.getElementById('death-modal');
             if (deathModal && deathModal.classList.contains('hidden')) {
-                deathModal.classList.remove('hidden');
+                deathModal.classList.add('hidden');
                 logMessage("[SYSTEM AI]: Carl has fallen. Respawn at checkpoint with Mordecai.");
             }
         }
