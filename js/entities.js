@@ -1,4 +1,6 @@
-export class carl3D {
+import * as THREE from 'three';
+
+export class Carl3D {
   constructor(scene, x, z, dungeonGrid) {
     this.scene = scene;
     this.hp = 100;
