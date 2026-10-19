@@ -11,6 +11,7 @@ let scene, camera, renderer;
 let audioManager, combatEngine, dungeonBuilder, inventoryManager;
 let carl, donut, mordecai;
 let monsters = [];
+let dungeonGrid = [];
 let clock = new THREE.Clock();
 
 let isMouseDown = false;
@@ -19,8 +20,8 @@ let raycaster = new THREE.Raycaster();
 let mouse = new THREE.Vector2();
 let planeMesh;
 
-// Visited history trail for the minimap
-let visitedPositions = [];
+// Visited fog-of-war explored set ("col,row")
+let exploredTiles = new Set();
 
 function init() {
     const container = document.getElementById('game-container');
@@ -46,6 +47,7 @@ function init() {
     // 4. Build Dungeon & Subsystems
     dungeonBuilder = new DungeonBuilder(scene);
     const dungeonData = dungeonBuilder.build();
+    dungeonGrid = dungeonData.grid;
 
     audioManager = new AudioManager();
     inventoryManager = new InventoryManager();
@@ -57,10 +59,10 @@ function init() {
     const spawnX = (spawnRoom.x + Math.floor(spawnRoom.w / 2)) * dungeonBuilder.tileSize;
     const spawnZ = (spawnRoom.y + Math.floor(spawnRoom.h / 2)) * dungeonBuilder.tileSize;
 
-    carl = new Carl3D(scene, spawnX, spawnZ, dungeonData.grid);
+    carl = new Carl3D(scene, spawnX, spawnZ, dungeonGrid);
     targetPosition.copy(carl.getPosition());
 
-    donut = new Donut3D(scene, spawnX + 2, spawnZ);
+    donut = new Donut3D(scene, spawnX + 2, spawnZ, dungeonGrid);
     mordecai = new Mordecai3D(scene, spawnX - 2, spawnZ);
 
     // Spawn Monsters across OTHER rooms (Strictly skipping index 0 safe room)
@@ -70,7 +72,7 @@ function init() {
             const mx = (r.x + Math.floor(r.w / 2)) * dungeonBuilder.tileSize;
             const mz = (r.y + Math.floor(r.h / 2)) * dungeonBuilder.tileSize;
             const type = Math.random() < 0.5 ? 'Rage Ibis' : 'Goblin Scavenger';
-            monsters.push(new Monster3D(scene, type, mx, mz, dungeonData.grid));
+            monsters.push(new Monster3D(scene, type, mx, mz, dungeonGrid));
         }
     }
 
@@ -86,6 +88,7 @@ function init() {
     
     // Left-Click and Hold to Walk
     window.addEventListener('mousedown', (e) => {
+        if (carl && carl.isDead) return;
         if (e.button !== 0) return; // Only left-click
         if (e.target.closest('#hud') || e.target.closest('#inventory-modal') || e.target.closest('#quick-belt') || e.target.closest('#heatmap-container')) return;
         isMouseDown = true;
@@ -95,6 +98,20 @@ function init() {
         if (isMouseDown) updateMouseTarget(e);
     });
     window.addEventListener('mouseup', () => { isMouseDown = false; });
+
+    // Respawn button setup
+    const respawnBtn = document.getElementById('respawn-btn');
+    if (respawnBtn) {
+        respawnBtn.addEventListener('click', () => {
+            const deathModal = document.getElementById('death-modal');
+            if (deathModal) deathModal.classList.add('hidden');
+            
+            // Teleport Carl back to safe room spawn
+            carl.respawn(spawnX, spawnZ);
+            targetPosition.copy(carl.getPosition());
+            logMessage("[SYSTEM AI]: Resurrected at checkpoint with Mordecai!");
+        });
+    }
 
     // Right-Click to Loot Monster Corpses
     window.addEventListener('contextmenu', (e) => {
@@ -125,6 +142,8 @@ function init() {
 
     // Keyboard controls ('I', 'R', 'A', 'P')
     window.addEventListener('keydown', (e) => {
+        if (carl && carl.isDead) return;
+
         if (e.key === 'i' || e.key === 'I') {
             const modal = document.getElementById('inventory-modal');
             if (modal) {
@@ -150,22 +169,26 @@ function init() {
             });
         }
         if (e.key === 'p' || e.key === 'P') {
-            audioManager.playSpell();
-            logMessage(`[SYSTEM AI]: PRINCESS DONUT activates skill: Royal Laser Purr! Cyan death beams strike all surrounding foes!`);
-            monsters.forEach(m => {
-                if (!m.isDead && m.group.position.distanceTo(donut.getPosition()) < 8.0) {
-                    const killed = m.takeDamage(35);
-                    if (killed) {
-                        combatEngine.handleCorpseCollapse(m);
-                        logMessage(`[SYSTEM AI]: Donut obliterated ${m.name}! Such majesty! Right-click body to loot.`);
-                    }
-                }
-            });
+            triggerDonutLaser();
         }
     });
 
     animate();
-    logMessage("[SYSTEM AI]: Engine initialized successfully. Press P for Donut's Royal Laser Purr.");
+    logMessage("[SYSTEM AI]: Engine initialized successfully.");
+}
+
+function triggerDonutLaser() {
+    audioManager.playSpell();
+    logMessage(`[SYSTEM AI]: PRINCESS DONUT activates skill: Royal Laser Purr! Cyan death beams strike all surrounding foes!`);
+    monsters.forEach(m => {
+        if (!m.isDead && m.group.position.distanceTo(donut.getPosition()) < 8.0) {
+            const killed = m.takeDamage(35);
+            if (killed) {
+                combatEngine.handleCorpseCollapse(m);
+                logMessage(`[SYSTEM AI]: Donut obliterated ${m.name}! Such majesty! Right-click body to loot.`);
+            }
+        }
+    });
 }
 
 function updateMouseTarget(e) {
@@ -219,7 +242,7 @@ function logMessage(text) {
     }
 }
 
-function drawMinimap() {
+function drawFogOfWarMinimap() {
     const canvas = document.getElementById('heatmap-canvas');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -227,44 +250,68 @@ function drawMinimap() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const carlPos = carl.getPosition();
-    const scale = 1.2;
+    const tileSize = dungeonBuilder.tileSize;
+    const carlCol = Math.floor(carlPos.x / tileSize + 0.5);
+    const carlRow = Math.floor(carlPos.z / tileSize + 0.5);
+
+    // Reveal tiles within line-of-sight radius
+    const visionRadius = 8;
+    for (let r = carlRow - visionRadius; r <= carlRow + visionRadius; r++) {
+        for (let c = carlCol - visionRadius; c <= carlCol + visionRadius; c++) {
+            if (r >= 0 && r < dungeonGrid.length && c >= 0 && c < dungeonGrid[0].length) {
+                const dist = Math.hypot(c - carlCol, r - carlRow);
+                if (dist <= visionRadius) {
+                    exploredTiles.add(`${c},${r}`);
+                }
+            }
+        }
+    }
+
+    const scale = 3.5; // Zoom scale for minimap grid
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
 
-    // Record history trail (throttled slightly so we don't spam array)
-    if (visitedPositions.length === 0 || visitedPositions[visitedPositions.length - 1].distanceTo(carlPos) > 1.5) {
-        visitedPositions.push(carlPos.clone());
-    }
+    // Render explored dungeon map tiles (Fog of War)
+    exploredTiles.forEach(coordStr => {
+        const [c, r] = coordStr.split(',').map(Number);
+        const tileX = c * tileSize;
+        const tileZ = r * tileSize;
 
-    // Draw historical exploration trail (Faint Blue/Cyan Dots)
-    ctx.fillStyle = 'rgba(0, 255, 204, 0.25)';
-    visitedPositions.forEach(pos => {
-        const dx = (pos.x - carlPos.x) * scale;
-        const dz = (pos.z - carlPos.z) * scale;
+        const dx = (tileX - carlPos.x) * scale;
+        const dz = (tileZ - carlPos.z) * scale;
+
         if (Math.abs(dx) < canvas.width && Math.abs(dz) < canvas.height) {
-            ctx.beginPath();
-            ctx.arc(cx + dx, cy + dz, 2, 0, Math.PI * 2);
-            ctx.fill();
+            const tileVal = dungeonGrid[r][c];
+            if (tileVal > 0) {
+                ctx.fillStyle = tileVal === 2 ? '#2e5b75' : '#332b22'; // Safe floor vs standard floor
+            } else {
+                ctx.fillStyle = '#1a1a24'; // Wall
+            }
+            ctx.fillRect(cx + dx - 1.5, cy + dz - 1.5, 3, 3);
         }
     });
 
-    // Draw Monsters (Red Dots)
+    // Draw Monsters (Red Dots if explored)
     monsters.forEach(m => {
         if (!m.isDead) {
             const mPos = m.group.position;
-            const dx = (mPos.x - carlPos.x) * scale;
-            const dz = (mPos.z - carlPos.z) * scale;
-            ctx.fillStyle = '#e74c3c';
-            ctx.beginPath();
-            ctx.arc(cx + dx, cy + dz, 3, 0, Math.PI * 2);
-            ctx.fill();
+            const mc = Math.floor(mPos.x / tileSize + 0.5);
+            const mr = Math.floor(mPos.z / tileSize + 0.5);
+            if (exploredTiles.has(`${mc},${mr}`)) {
+                const dx = (mPos.x - carlPos.x) * scale;
+                const dz = (mPos.z - carlPos.z) * scale;
+                ctx.fillStyle = '#e74c3c';
+                ctx.beginPath();
+                ctx.arc(cx + dx, cy + dz, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
     });
 
-    // Draw Carl (Bright Cyan Dot)
+    // Draw Carl (Cyan Dot)
     ctx.fillStyle = '#00ffcc';
     ctx.beginPath();
-    ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+    ctx.arc(cx, cy, 3.5, 0, Math.PI * 2);
     ctx.fill();
 }
 
@@ -281,8 +328,27 @@ function animate() {
         camera.position.set(carlPos.x, carlPos.y + 16, carlPos.z + 12);
         camera.lookAt(carlPos);
 
-        // Donut follows Carl
-        if (donut) donut.follow(carlPos, delta);
+        // Donut AI behavior
+        if (donut) {
+            donut.updateAI(carlPos, monsters, delta, (targetMonster) => {
+                audioManager.playSpell();
+                const killed = targetMonster.takeDamage(30);
+                logMessage(`[SYSTEM AI]: Donut zaps ${targetMonster.name} with a mini laser purr!`);
+                if (killed) {
+                    combatEngine.handleCorpseCollapse(targetMonster);
+                    logMessage(`[SYSTEM AI]: Donut defeated ${targetMonster.name}! Right-click body to loot.`);
+                }
+            });
+        }
+
+        // Check if Carl died
+        if (carl.isDead) {
+            const deathModal = document.getElementById('death-modal');
+            if (deathModal && deathModal.classList.contains('hidden')) {
+                deathModal.classList.remove('hidden');
+                logMessage("[SYSTEM AI]: Carl has fallen. Respawn at checkpoint with Mordecai.");
+            }
+        }
     }
 
     // Update Monsters & UI Tags
@@ -297,7 +363,7 @@ function animate() {
         m.updateUI(camera);
     });
 
-    drawMinimap();
+    drawFogOfWarMinimap();
     renderer.render(scene, camera);
 }
 
