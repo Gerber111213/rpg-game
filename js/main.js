@@ -14,6 +14,7 @@ let audioManager, combatEngine, dungeonBuilder, inventoryManager, minimapManager
 let carl, donut, mordecai;
 let monsters = [];
 let dungeonGrid = [];
+let spawnX = 0, spawnZ = 0;
 let clock = new THREE.Clock();
 
 let isMouseDown = false;
@@ -56,8 +57,8 @@ function init() {
 
     // Spawn Characters in First Safe Room
     const spawnRoom = dungeonData.rooms[0];
-    const spawnX = (spawnRoom.x + Math.floor(spawnRoom.w / 2)) * dungeonBuilder.tileSize;
-    const spawnZ = (spawnRoom.y + Math.floor(spawnRoom.h / 2)) * dungeonBuilder.tileSize;
+    spawnX = (spawnRoom.x + Math.floor(spawnRoom.w / 2)) * dungeonBuilder.tileSize;
+    spawnZ = (spawnRoom.y + Math.floor(spawnRoom.h / 2)) * dungeonBuilder.tileSize;
 
     carl = new Carl3D(scene, spawnX, spawnZ, dungeonGrid);
     targetPosition.copy(carl.getPosition());
@@ -66,15 +67,7 @@ function init() {
     mordecai = new Mordecai3D(scene, spawnX - 2, spawnZ);
 
     // Spawn Monsters across OTHER rooms
-    for (let i = 1; i < dungeonData.rooms.length; i++) {
-        if (Math.random() < 0.7) {
-            const r = dungeonData.rooms[i];
-            const mx = (r.x + Math.floor(r.w / 2)) * dungeonBuilder.tileSize;
-            const mz = (r.y + Math.floor(r.h / 2)) * dungeonBuilder.tileSize;
-            const type = Math.random() < 0.5 ? 'Rage Ibis' : 'Goblin Scavenger';
-            monsters.push(new Monster3D(scene, type, mx, mz, dungeonGrid));
-        }
-    }
+    spawnMonsters(dungeonData);
 
     // Invisible Floor Plane for Click-and-Hold Raycasting
     const planeGeo = new THREE.PlaneGeometry(500, 500);
@@ -104,9 +97,23 @@ function init() {
             const deathModal = document.getElementById('death-modal');
             if (deathModal) deathModal.classList.add('hidden');
             
+            // Clean up old monster DOM tags and meshes
+            monsters.forEach(m => {
+                if (m.uiElement) m.uiElement.remove();
+                if (m.group) scene.remove(m.group);
+            });
+            monsters = [];
+
+            // Respawn Carl & Donut
             carl.respawn(spawnX, spawnZ);
             targetPosition.copy(carl.getPosition());
-            logMessage("[SYSTEM AI]: Resurrected at checkpoint with Mordecai!");
+            if (donut) donut.group.position.set(spawnX + 2, 0, spawnZ);
+
+            // Re-spawn fresh monsters across the dungeon
+            spawnMonsters(dungeonData);
+            minimapManager.exploredTiles.clear();
+
+            logMessage("[SYSTEM AI]: Checkpoint reloaded. Back in action with Mordecai!");
         });
     }
 
@@ -170,6 +177,18 @@ function init() {
 
     animate();
     logMessage("[SYSTEM AI]: Engine initialized successfully.");
+}
+
+function spawnMonsters(dungeonData) {
+    for (let i = 1; i < dungeonData.rooms.length; i++) {
+        if (Math.random() < 0.7) {
+            const r = dungeonData.rooms[i];
+            const mx = (r.x + Math.floor(r.w / 2)) * dungeonBuilder.tileSize;
+            const mz = (r.y + Math.floor(r.h / 2)) * dungeonBuilder.tileSize;
+            const type = Math.random() < 0.5 ? 'Rage Ibis' : 'Goblin Scavenger';
+            monsters.push(new Monster3D(scene, type, mx, mz, dungeonGrid));
+        }
+    }
 }
 
 function triggerDonutLaser() {
@@ -263,7 +282,7 @@ function animate() {
         if (carl.isDead) {
             const deathModal = document.getElementById('death-modal');
             if (deathModal && deathModal.classList.contains('hidden')) {
-                deathModal.classList.add('hidden');
+                deathModal.classList.remove('hidden');
                 logMessage("[SYSTEM AI]: Carl has fallen. Respawn at checkpoint with Mordecai.");
             }
         }
