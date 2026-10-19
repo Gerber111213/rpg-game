@@ -1,75 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dungeon Crawler Carl - 3D Labyrinth Engine</title>
-  <link rel="stylesheet" href="style.css">
-  
-  <!-- Three.js Library -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crawler's Descent - Tutorial Level</title>
+    <link rel="stylesheet" href="style.css">
 </head>
-<body oncontextmenu="return false;">
-
-  <!-- 3D Game Viewport -->
-  <div id="game-container"></div>
-
-  <!-- Top-Left Health HUD -->
-  <div id="hud">
-    <div id="health-bar-container">
-      <div id="carl-hp-bar" class="hp-fill" style="width: 100%;"></div>
-      <span id="hp-text">Carl HP: 100 / 100</span>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="ui-overlay">
+            <div id="dialogue-box">System Announcement: Welcome, Crawler! Follow the path.</div>
+            <div id="quest-tracker">Objective: Find the Stairwell Down (0/1)</div>
+        </div>
     </div>
-    <div id="log-box">
-      <p class="sys-msg">[SYSTEM AI]: Welcome to Floor 1, Crawler. Hold Left-Click to walk. Press R to Run. Press A for Skills. Press I for Inventory.</p>
-    </div>
-  </div>
 
-  <!-- Bottom Potion & Item Belt -->
-  <div id="quick-belt">
-    <div class="belt-slot" data-slot="0"><span>1</span></div>
-    <div class="belt-slot" data-slot="1"><span>2</span></div>
-    <div class="belt-slot" data-slot="2"><span>3</span></div>
-    <div class="belt-slot" data-slot="3"><span>4</span></div>
-  </div>
-
-  <!-- Bottom-Right Heat Map / Radar -->
-  <div id="heatmap-container">
-    <canvas id="heatmap-canvas" width="140" height="140"></canvas>
-  </div>
-
-  <!-- Inventory & Paperdoll Modal (Press 'I') -->
-  <div id="inventory-modal" class="hidden">
-    <div class="inventory-window" id="carl-inventory">
-      <h2>Carl's Equipment & Inventory</h2>
-      <div class="equipment-slots">
-        <div class="slot" data-slot="feet" id="eq-feet">Feet: Bare Feet</div>
-        <div class="slot" data-slot="torso" id="eq-torso">Chest: Tactical Vest</div>
-        <div class="slot" data-slot="mainhand" id="eq-mainhand">Main Hand: Spiked Club</div>
-      </div>
-      <div class="bag-grid" id="carl-bag"></div>
-    </div>
-    <div class="inventory-window" id="donut-inventory">
-      <h2>Donut's Equipment & Inventory</h2>
-      <div class="equipment-slots">
-        <div class="slot" data-slot="neck" id="eq-neck">Neck: Cyan Collar</div>
-      </div>
-      <div class="bag-grid" id="donut-bag"></div>
-    </div>
-  </div>
-
-  <!-- Right-Click Context Menu -->
-  <div id="context-menu" class="hidden">
-    <ul id="context-options"></ul>
-  </div>
-
-  <!-- Item Hover Tooltip -->
-  <div id="item-tooltip" class="hidden">
-    <div id="tooltip-title"></div>
-    <div id="tooltip-desc"></div>
-  </div>
-
-  <!-- Main ES6 Entry Point -->
-  <script type="module" src="js/main.js"></script>
+    <!-- Modular Script Imports -->
+    <script src="js/tiles.js"></script>
+    <script src="js/map.js"></script>
+    <script src="js/entities.js"></script>
+    <script src="js/engine.js"></script>
 </body>
 </html>
