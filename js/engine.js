@@ -2,90 +2,102 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-const TILE_SIZE = 50; // Size of each grid block in pixels
+const SCREEN_WIDTH = canvas.width;
+const SCREEN_HEIGHT = canvas.height;
+const FOV = Math.PI / 3; // Field of View (60 degrees)
+const MAX_DEPTH = 16;   // Max render distance
 
-// Player state (Crawler Carl archetype)
-let player = {
-    x: 1, // Grid X
-    y: 1, // Grid Y
-    color: '#ff5555',
-    radius: 15
-};
+// Input tracking
+const keys = {};
+window.addEventListener('keydown', e => keys[e.key] = true);
+window.addEventListener('keyup', e => keys[e.key] = false);
 
-// Tutorial state machine messages
-const tutorialSteps = [
-    { text: "System Announcement: The collapse has begun! Use Arrow Keys to move along the street.", check: () => true },
-    { text: "Tutorial: Find the glowing golden stairwell descending into Floor 1.", check: () => mapAt(player.x, player.y) === 4 }
-];
-let currentStep = 0;
+function updatePlayer() {
+    let moveSpeed = 0.04;
+    let rotSpeed = 0.03;
 
-function mapAt(x, y) {
-    if (y < 0 || y >= MAP_DATA.height || x < 0 || x >= MAP_DATA.width) return 0;
-    return MAP_DATA.grid[y][x];
+    // Rotation (Left/Right arrows)
+    if (keys['ArrowLeft']) player.angle -= rotSpeed;
+    if (keys['ArrowRight']) player.angle += rotSpeed;
+
+    // Movement (Up/Down or W/S)
+    let dx = Math.cos(player.angle) * moveSpeed;
+    let dy = Math.sin(player.angle) * moveSpeed;
+
+    let targetX = player.x;
+    let targetY = player.y;
+
+    if (keys['ArrowUp'] || keys['w']) {
+        targetX += dx;
+        targetY += dy;
+    }
+    if (keys['ArrowDown'] || keys['s']) {
+        targetX -= dx;
+        targetY -= dy;
+    }
+
+    // Simple collision check against map grid
+    let gridX = Math.floor(targetX);
+    let gridY = Math.floor(targetY);
+    if (MAP_DATA.grid[gridY] && MAP_DATA.grid[gridY][gridX] === 1) {
+        player.x = targetX;
+        player.y = targetY;
+    }
 }
 
-// Handle Keyboard Input
-window.addEventListener('keydown', (e) => {
-    let newX = player.x;
-    let newY = player.y;
+function castRays() {
+    // 1. Draw Ceiling and Floor (Lighting gradient)
+    ctx.fillStyle = "#111"; // Ceiling
+    ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT / 2);
+    ctx.fillStyle = "#222"; // Floor
+    ctx.fillRect(0, SCREEN_HEIGHT / 2, SCREEN_WIDTH, SCREEN_HEIGHT / 2);
 
-    if (e.key === 'ArrowUp') newY--;
-    if (e.key === 'ArrowDown') newY++;
-    if (e.key === 'ArrowLeft') newX--;
-    if (e.key === 'ArrowRight') newX++;
+    // 2. Raycast loop across the screen width
+    let numRays = SCREEN_WIDTH;
+    let halfFOV = FOV / 2;
 
-    // Check collision against tile data
-    let targetTileID = mapAt(newX, newY);
-    let targetTile = TILES[targetTileID];
+    for (let i = 0; i < numRays; i++) {
+        let rayAngle = player.angle - halfFOV + (i / numRays) * FOV;
+        let distanceToWall = 0;
+        let hitWall = false;
 
-    if (targetTile && !targetTile.solid) {
-        player.x = newX;
-        player.y = newY;
+        let eyeX = Math.cos(rayAngle);
+        let eyeY = Math.sin(rayAngle);
+
+        while (!hitWall && distanceToWall < MAX_DEPTH) {
+            distanceToWall += 0.05;
+            let testX = Math.floor(player.x + eyeX * distanceToWall);
+            let testY = Math.floor(player.y + eyeY * distanceToWall);
+
+            if (testX < 0 || testX >= MAP_DATA.width || testY < 0 || testY >= MAP_DATA.height) {
+                hitWall = true;
+                distanceToWall = MAX_DEPTH;
+            } else if (MAP_DATA.grid[testY][testX] === 1) {
+                hitWall = true;
+            }
+        }
+
+        // Fix fisheye distortion
+        let correctedDist = distanceToWall * Math.cos(rayAngle - player.angle);
         
-        // Check win condition (stairwell)
-        if (targetTile.isGoal) {
-            document.getElementById("dialogue-box").innerText = "Achievement Unlocked: First Blood & Descent! Entering Floor 1...";
-            document.getElementById("quest-tracker").innerText = "Objective Complete!";
-        }
-    }
-});
+        // Calculate wall height on screen
+        let wallHeight = Math.min(SCREEN_HEIGHT, (SCREEN_HEIGHT / correctedDist));
+        let ceiling = (SCREEN_HEIGHT - wallHeight) / 2;
 
-// Render Loop
+        // Lighting shading based on distance
+        let shade = Math.max(0, 255 - (distanceToWall * 18));
+        ctx.fillStyle = `rgb(${shade / 2}, ${shade / 3}, ${shade / 4})`; // Brick/Concrete tone
+
+        // Draw vertical stripe for this ray
+        ctx.fillRect(i, ceiling, 1, wallHeight);
+    }
+}
+
 function gameLoop() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // 1. Draw Map Grid
-    for (let y = 0; y < MAP_DATA.height; y++) {
-        for (let x = 0; x < MAP_DATA.width; x++) {
-            let tileID = MAP_DATA.grid[y][x];
-            let tile = TILES[tileID];
-            
-            ctx.fillStyle = tile.color;
-            ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-            
-            // Grid cell borders for clean Diablo-like tactical look
-            ctx.strokeStyle = '#111';
-            ctx.strokeRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-        }
-    }
-
-    // 2. Draw Player Character
-    ctx.fillStyle = player.color;
-    ctx.beginPath();
-    ctx.arc(
-        (player.x * TILE_SIZE) + (TILE_SIZE / 2),
-        (player.y * TILE_SIZE) + (TILE_SIZE / 2),
-        player.radius,
-        0,
-        Math.PI * 2
-    );
-    ctx.fill();
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
+    updatePlayer();
+    ctx.clearRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+    castRays();
     requestAnimationFrame(gameLoop);
 }
 
-// Start the loop
 gameLoop();
