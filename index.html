@@ -20,11 +20,15 @@
   <!-- 3D Game Viewport -->
   <div id="game-container"></div>
 
-  <!-- Top-Left Health HUD -->
+  <!-- Top-Left Health & Stamina HUD -->
   <div id="hud">
     <div id="health-bar-container">
       <div id="carl-hp-bar" class="hp-fill" style="width: 100%;"></div>
       <span id="hp-text">Carl HP: 100 / 100</span>
+    </div>
+    <div id="stamina-bar-container" style="background: #222; border: 1px solid #555; height: 16px; position: relative; margin-bottom: 8px; border-radius: 3px; overflow: hidden;">
+      <div id="carl-stam-bar" style="background: #f1c40f; height: 100%; width: 100%; transition: width 0.1s linear;"></div>
+      <span id="stam-text" style="position: absolute; width: 100%; text-align: center; top: 1px; font-size: 10px; font-weight: bold; text-shadow: 1px 1px #000;">Stamina: 100 / 100</span>
     </div>
     <div id="log-box">
       <p class="sys-msg">[SYSTEM AI]: Welcome to Floor 1, Crawler. Hold Left-Click to walk. Press R to Run. Press A for Skills. Press I for Inventory.</p>
