@@ -1,8 +1,8 @@
 // js/player.js
 const player = {
-    x: 1.5,          // Safe open space in the map grid
-    y: 1.5,
-    angle: 0,        // Facing direction (radians)
+    x: 1.5,          // X position
+    y: 5.5,          // Moving to an open vertical corridor row
+    angle: 0.5,      // Slightly angled to look down the hall
     hp: 100,
     maxHp: 100,
     inventory: [
