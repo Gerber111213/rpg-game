@@ -27,6 +27,10 @@ function init() {
     const container = document.getElementById('game-container');
     if (!container) return;
 
+    // Ensure death modal starts hidden
+    const deathModal = document.getElementById('death-modal');
+    if (deathModal) deathModal.classList.add('hidden');
+
     // 1. Scene & Camera
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x050508);
@@ -94,22 +98,19 @@ function init() {
     const respawnBtn = document.getElementById('respawn-btn');
     if (respawnBtn) {
         respawnBtn.addEventListener('click', () => {
-            const deathModal = document.getElementById('death-modal');
-            if (deathModal) deathModal.classList.add('hidden');
+            const modal = document.getElementById('death-modal');
+            if (modal) modal.classList.add('hidden');
             
-            // Clean up old monster DOM tags and meshes
             monsters.forEach(m => {
                 if (m.uiElement) m.uiElement.remove();
                 if (m.group) scene.remove(m.group);
             });
             monsters = [];
 
-            // Respawn Carl & Donut
             carl.respawn(spawnX, spawnZ);
             targetPosition.copy(carl.getPosition());
             if (donut) donut.group.position.set(spawnX + 2, 0, spawnZ);
 
-            // Re-spawn fresh monsters across the dungeon
             spawnMonsters(dungeonData);
             minimapManager.exploredTiles.clear();
 
