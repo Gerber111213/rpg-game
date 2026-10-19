@@ -23,11 +23,41 @@ export class DungeonBuilder {
 
   generateRoomsAndCorridors() {
     const minSize = 6, maxSize = 12, targetRooms = 20;
-    for (let i = 0; i < targetRooms; i++) {
+
+    // Room 0: Dedicated Isolated Starting Safe Room
+    const startX = 26;
+    const startZ = 26;
+    const startW = 8;
+    const startH = 8;
+
+    for (let rx = startX; rx < startX + startW; rx++) {
+      for (let ry = startZ; ry < startZ + startH; ry++) {
+        this.grid[ry][rx] = 2; // Safe Room Floor
+      }
+    }
+    const safeRoom = { x: startX, y: startZ, w: startW, h: startH, isSafe: true };
+    this.rooms.push(safeRoom);
+
+    // Carve the single exit corridor from the middle-right wall of Room 0
+    const exitCorridorX = startX + startW;
+    const exitCorridorZ = startZ + Math.floor(startH / 2);
+    
+    for (let x = exitCorridorX; x < exitCorridorX + 4; x++) {
+      this.grid[exitCorridorZ][x] = 1;
+      this.grid[exitCorridorZ + 1][x] = 1;
+    }
+
+    // Place the double swinging doors right at the safe room exit threshold
+    this.worldBuilder.createSwingingDoors(exitCorridorX * this.tileSize, (exitCorridorZ + 0.5) * this.tileSize);
+
+    // Generate remaining random rooms connected from the exit point
+    let prevRoom = { x: exitCorridorX + 2, y: exitCorridorZ, w: 4, h: 4 };
+
+    for (let i = 1; i < targetRooms; i++) {
       const w = Math.floor(Math.random() * (maxSize - minSize)) + minSize;
       const h = Math.floor(Math.random() * (maxSize - minSize)) + minSize;
-      const x = i === 0 ? 25 : Math.floor(Math.random() * (this.gridCols - w - 4)) + 2;
-      const y = i === 0 ? 25 : Math.floor(Math.random() * (this.gridRows - h - 4)) + 2;
+      const x = Math.floor(Math.random() * (this.gridCols - w - 4)) + 15;
+      const y = Math.floor(Math.random() * (this.gridRows - h - 4)) + 5;
 
       let overlap = false;
       for (let r of this.rooms) {
@@ -37,8 +67,8 @@ export class DungeonBuilder {
         }
       }
 
-      if (!overlap || i === 0) {
-        const isSafe = (i === 0 || i % 7 === 0); 
+      if (!overlap) {
+        const isSafe = (i % 7 === 0); 
         for (let rx = x; rx < x + w; rx++) {
           for (let ry = y; ry < y + h; ry++) {
             if (ry >= 0 && ry < this.gridRows && rx >= 0 && rx < this.gridCols) {
@@ -49,19 +79,13 @@ export class DungeonBuilder {
         const roomObj = { x, y, w, h, isSafe };
         this.rooms.push(roomObj);
 
-        if (this.rooms.length > 1) {
-          const prev = this.rooms[this.rooms.length - 2];
-          const bridgeX = Math.floor(prev.x + prev.w/2);
-          const bridgeZ = Math.floor(prev.y + prev.h/2);
-          const targetX = Math.floor(x + w/2);
-          const targetZ = Math.floor(y + h/2);
+        const bridgeX = Math.floor(prev.x + prev.w/2);
+        const bridgeZ = Math.floor(prev.y + prev.h/2);
+        const targetX = Math.floor(x + w/2);
+        const targetZ = Math.floor(y + h/2);
 
-          this.carveCorridor(bridgeX, targetX, bridgeZ, targetZ);
-
-          if (i === 1) {
-            this.worldBuilder.createSwingingDoors(bridgeX * this.tileSize, bridgeZ * this.tileSize);
-          }
-        }
+        this.carveCorridor(bridgeX, targetX, bridgeZ, targetZ);
+        prevRoom = roomObj;
       }
     }
   }
