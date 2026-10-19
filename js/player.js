@@ -1,7 +1,7 @@
 // js/player.js
 const player = {
-    x: 2.5,          // Floating-point coordinates for smooth 3D movement
-    y: 2.5,
+    x: 1.5,          // Safe open space in the map grid
+    y: 1.5,
     angle: 0,        // Facing direction (radians)
     hp: 100,
     maxHp: 100,
