@@ -2,6 +2,10 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
+// Ensure canvas internal resolution matches display size
+canvas.width = 768;
+canvas.height = 432;
+
 const SCREEN_WIDTH = canvas.width;
 const SCREEN_HEIGHT = canvas.height;
 const FOV = Math.PI / 3; // 60 degrees field of view
@@ -40,7 +44,7 @@ function updatePlayer() {
     let gridX = Math.floor(targetX);
     let gridY = Math.floor(targetY);
     
-    if (MAP_DATA.grid[gridY] && MAP_DATA.grid[gridY][gridX] === 0) {
+    if (typeof MAP_DATA !== 'undefined' && MAP_DATA.grid[gridY] && MAP_DATA.grid[gridY][gridX] === 0) {
         player.x = targetX;
         player.y = targetY;
     }
@@ -48,11 +52,13 @@ function updatePlayer() {
 
 function castRays() {
     // 1. Draw Ceiling and Floor gradients
-    ctx.fillStyle = "#111118"; // Ceiling
+    ctx.fillStyle = "#1a1a24"; // Ceiling
     ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT / 2);
     
-    ctx.fillStyle = "#1f1f1f"; // Floor
+    ctx.fillStyle = "#33333f"; // Floor
     ctx.fillRect(0, SCREEN_HEIGHT / 2, SCREEN_WIDTH, SCREEN_HEIGHT / 2);
+
+    if (typeof MAP_DATA === 'undefined') return;
 
     // 2. Raycasting loop across screen columns
     let numRays = SCREEN_WIDTH;
@@ -85,8 +91,8 @@ function castRays() {
         let ceiling = (SCREEN_HEIGHT - wallHeight) / 2;
 
         // Distance-based lighting shading
-        let shade = Math.max(10, 240 - (distanceToWall * 15));
-        ctx.fillStyle = `rgb(${shade / 2}, ${shade / 3}, ${shade / 4})`;
+        let shade = Math.max(20, 255 - (distanceToWall * 14));
+        ctx.fillStyle = `rgb(${shade}, ${shade / 2}, ${shade / 4})`;
 
         // Draw vertical wall strip
         ctx.fillRect(i, ceiling, 1, wallHeight);
