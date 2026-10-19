@@ -72,7 +72,7 @@ export class Carl3D {
 
   toggleRun() {
     if (this.isDead) return false;
-    if (!this.isRunning && this.stamina <= 5) return false; // Can't run if out of stamina
+    if (!this.isRunning && this.stamina <= 5) return false;
     this.isRunning = !this.isRunning;
     this.speed = this.isRunning ? this.runSpeed : this.walkSpeed;
     return this.isRunning;
@@ -88,12 +88,10 @@ export class Carl3D {
         this.speed = this.walkSpeed;
       }
     } else {
-      // Regenerate stamina when walking or standing still
       const regenRate = isMoving ? 15 : 30;
       this.stamina = Math.min(this.maxStamina, this.stamina + regenRate * delta);
     }
 
-    // Update Stamina UI Bar
     const pct = (this.stamina / this.maxStamina) * 100;
     const fill = document.getElementById('carl-stam-bar');
     const text = document.getElementById('stam-text');
@@ -182,13 +180,29 @@ export class Carl3D {
     if (fill) fill.style.width = `${pct}%`;
     if (text) text.textContent = `Carl HP: ${this.hp} / ${this.maxHp}`;
   }
+
+  respawn(x, z) {
+    this.isDead = false;
+    this.hp = this.maxHp;
+    this.stamina = this.maxStamina;
+    this.group.rotation.x = 0;
+    this.group.position.set(x, 0, z);
+    
+    const fill = document.getElementById('carl-hp-bar');
+    const text = document.getElementById('hp-text');
+    if (fill) fill.style.width = `100%`;
+    if (text) text.textContent = `Carl HP: ${this.hp} / ${this.maxHp}`;
+  }
 }
 
 export class Donut3D {
-  constructor(scene, x, z) {
+  constructor(scene, x, z, dungeonGrid) {
     this.scene = scene;
     this.name = "Princess Donut";
-    this.speed = 9;
+    this.speed = 3.5;
+    this.grid = dungeonGrid;
+    this.tileSize = 4;
+    this.attackTimer = 0;
 
     this.group = new THREE.Group();
 
@@ -266,28 +280,54 @@ export class Donut3D {
 
   getPosition() { return this.group.position; }
 
-  follow(targetPos, delta) {
+  updateAI(carlPos, monsters, delta, onAttack) {
     const currentPos = this.group.position;
-    const dist = currentPos.distanceTo(targetPos);
+    const distToCarl = currentPos.distanceTo(carlPos);
 
-    if (dist > 3.0) {
-      const dir = new THREE.Vector3().subVectors(targetPos, currentPos);
-      dir.y = 0;
-      dir.normalize();
+    // Find nearest living monster
+    let nearestMonster = null;
+    let minDist = 10.0; // Aggro range
+
+    monsters.forEach(m => {
+      if (!m.isDead) {
+        const d = currentPos.distanceTo(m.group.position);
+        if (d < minDist) {
+          minDist = d;
+          nearestMonster = m;
+        }
+      }
+    });
+
+    let targetDest = carlPos;
+    if (nearestMonster && distToCarl < 12.0) {
+      // Engage monster autonomously!
+      targetDest = nearestMonster.group.position;
       
+      this.attackTimer -= delta;
+      if (minDist <= 5.0 && this.attackTimer <= 0) {
+        this.attackTimer = 2.5; // Attack interval
+        if (onAttack) onAttack(nearestMonster);
+      }
+    } else if (distToCarl > 4.0) {
+      // Follow Carl closely if too far away
+      targetDest = carlPos;
+    } else {
+      // Safe wandering around Carl
+      return;
+    }
+
+    const dir = new THREE.Vector3().subVectors(targetDest, currentPos);
+    dir.y = 0;
+    if (dir.length() > 0.5) {
+      dir.normalize();
       currentPos.addScaledVector(dir, this.speed * delta);
-      this.group.lookAt(targetPos.x, currentPos.y, targetPos.z);
+      this.group.lookAt(targetDest.x, currentPos.y, targetDest.z);
 
       const time = Date.now() * 0.02;
       this.frontLeftLeg.rotation.x = Math.sin(time) * 0.7;
       this.frontRightLeg.rotation.x = -Math.sin(time) * 0.7;
       this.backLeftLeg.rotation.x = -Math.sin(time) * 0.7;
       this.backRightLeg.rotation.x = Math.sin(time) * 0.7;
-    } else {
-      this.frontLeftLeg.rotation.x = 0;
-      this.frontRightLeg.rotation.x = 0;
-      this.backLeftLeg.rotation.x = 0;
-      this.backRightLeg.rotation.x = 0;
     }
   }
 }
@@ -422,7 +462,7 @@ export class Monster3D {
     const pct = Math.max(0, (this.hp / this.maxHp) * 100);
     if (this.uiElement) {
       const fill = this.uiElement.querySelector('.m-hp-fill');
-      if (fill) fill.style.width = `${pct}%`;
+      if (fill) fill.style.width = `${pct%}`;
     }
 
     if (this.hp <= 0 && !this.isDead) {
