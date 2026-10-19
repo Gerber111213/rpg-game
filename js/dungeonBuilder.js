@@ -9,6 +9,7 @@ export class DungeonBuilder {
     this.grid = Array.from({ length: this.gridRows }, () => Array(this.gridCols).fill(0));
     this.rooms = [];
     this.torches = [];
+    this.doors = [];
   }
 
   build() {
@@ -16,7 +17,8 @@ export class DungeonBuilder {
     this.render3DWorld();
     return { 
       grid: this.grid, 
-      rooms: this.rooms
+      rooms: this.rooms,
+      doors: this.doors
     };
   }
 
@@ -37,7 +39,6 @@ export class DungeonBuilder {
       }
 
       if (!overlap || i === 0) {
-        // Room 0 (Starting Room) is ALWAYS safe and completely monster-free!
         const isSafe = (i === 0 || i % 7 === 0); 
         for (let rx = x; rx < x + w; rx++) {
           for (let ry = y; ry < y + h; ry++) {
@@ -51,7 +52,17 @@ export class DungeonBuilder {
 
         if (this.rooms.length > 1) {
           const prev = this.rooms[this.rooms.length - 2];
-          this.carveCorridor(Math.floor(prev.x + prev.w/2), Math.floor(x + w/2), Math.floor(prev.y + prev.h/2), Math.floor(y + h/2));
+          const bridgeX = Math.floor(prev.x + prev.w/2);
+          const bridgeZ = Math.floor(prev.y + prev.h/2);
+          const targetX = Math.floor(x + w/2);
+          const targetZ = Math.floor(y + h/2);
+
+          this.carveCorridor(bridgeX, targetX, bridgeZ, targetZ);
+
+          // If this corridor connects directly from the safe starting room (Room 0), place double swinging doors!
+          if (i === 1) {
+            this.createSwingingDoors(bridgeX * this.tileSize, bridgeZ * this.tileSize);
+          }
         }
       }
     }
@@ -66,6 +77,32 @@ export class DungeonBuilder {
       if (x2 >= 0 && x2 < this.gridCols && y >= 0 && y < this.gridRows) this.grid[y][x2] = 1; 
       if (x2 + 1 >= 0 && x2 + 1 < this.gridCols && y >= 0 && y < this.gridRows) this.grid[y][x2 + 1] = 1; 
     }
+  }
+
+  createSwingingDoors(x, z) {
+    const doorMat = new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.8 });
+    const trimMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.8 }); // Gold trim
+
+    const leftGroup = new THREE.Group();
+    const rightGroup = new THREE.Group();
+
+    const panelGeo = new THREE.BoxGeometry(1.8, 4.2, 0.2);
+    
+    const leftMesh = new THREE.Mesh(panelGeo, doorMat);
+    leftMesh.position.set(-0.9, 2.1, 0);
+    leftGroup.add(leftMesh);
+
+    const rightMesh = new THREE.Mesh(panelGeo, doorMat);
+    rightMesh.position.set(0.9, 2.1, 0);
+    rightGroup.add(rightMesh);
+
+    leftGroup.position.set(x - 1.0, 0, z);
+    rightGroup.position.set(x + 1.0, 0, z);
+
+    // Store references for animation/interaction if desired
+    this.scene.add(leftGroup);
+    this.scene.add(rightGroup);
+    this.doors.push({ left: leftGroup, right: rightGroup, isOpen: false });
   }
 
   render3DWorld() {
