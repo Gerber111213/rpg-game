@@ -5,6 +5,8 @@ export class Carl3D {
     this.scene = scene;
     this.hp = 100;
     this.maxHp = 100;
+    this.stamina = 100;
+    this.maxStamina = 100;
     this.walkSpeed = 5;
     this.runSpeed = 10;
     this.speed = this.walkSpeed;
@@ -70,9 +72,33 @@ export class Carl3D {
 
   toggleRun() {
     if (this.isDead) return false;
+    if (!this.isRunning && this.stamina <= 5) return false; // Can't run if out of stamina
     this.isRunning = !this.isRunning;
     this.speed = this.isRunning ? this.runSpeed : this.walkSpeed;
     return this.isRunning;
+  }
+
+  updateStamina(delta, isMoving) {
+    if (this.isDead) return;
+    
+    if (this.isRunning && isMoving) {
+      this.stamina = Math.max(0, this.stamina - 25 * delta);
+      if (this.stamina <= 0) {
+        this.isRunning = false;
+        this.speed = this.walkSpeed;
+      }
+    } else {
+      // Regenerate stamina when walking or standing still
+      const regenRate = isMoving ? 15 : 30;
+      this.stamina = Math.min(this.maxStamina, this.stamina + regenRate * delta);
+    }
+
+    // Update Stamina UI Bar
+    const pct = (this.stamina / this.maxStamina) * 100;
+    const fill = document.getElementById('carl-stam-bar');
+    const text = document.getElementById('stam-text');
+    if (fill) fill.style.width = `${pct}%`;
+    if (text) text.textContent = `Stamina: ${Math.floor(this.stamina)} / ${this.maxStamina}`;
   }
 
   getPosition() { return this.group.position; }
@@ -86,12 +112,15 @@ export class Carl3D {
   }
 
   moveTo(targetVec, delta) {
-    if (this.isDead) return;
+    if (this.isDead) return false;
     const currentPos = this.group.position;
     const dir = new THREE.Vector3().subVectors(targetVec, currentPos);
     dir.y = 0;
 
-    if (dir.length() > 0.1) {
+    const isMoving = dir.length() > 0.1;
+    this.updateStamina(delta, isMoving);
+
+    if (isMoving) {
       dir.normalize();
       const step = dir.clone().multiplyScalar(this.speed * delta);
       const buffer = 0.4;
@@ -118,11 +147,13 @@ export class Carl3D {
       this.rightArm.rotation.x = -Math.sin(time) * 0.6;
       this.leftLeg.rotation.x = -Math.sin(time) * 0.6;
       this.rightLeg.rotation.x = Math.sin(time) * 0.6;
+      return true;
     } else {
       this.leftArm.rotation.x = 0;
       this.rightArm.rotation.x = 0;
       this.leftLeg.rotation.x = 0;
       this.rightLeg.rotation.x = 0;
+      return false;
     }
   }
 
