@@ -2,29 +2,26 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-// Ensure canvas internal resolution matches display size
 canvas.width = 768;
 canvas.height = 432;
 
 const SCREEN_WIDTH = canvas.width;
 const SCREEN_HEIGHT = canvas.height;
-const FOV = Math.PI / 3; // 60 degrees field of view
-const MAX_DEPTH = 16;   // Max view distance
+const FOV = Math.PI / 3;
+const MAX_DEPTH = 16;
 
-// Input tracking for smooth motion
 const keys = {};
 window.addEventListener('keydown', e => keys[e.key] = true);
 window.addEventListener('keyup', e => keys[e.key] = false);
 
 function updatePlayer() {
+    if (typeof player === 'undefined') return;
     let moveSpeed = 0.04;
     let rotSpeed = 0.03;
 
-    // Rotation controls (Left/Right arrows or A/D)
     if (keys['ArrowLeft'] || keys['a']) player.angle -= rotSpeed;
     if (keys['ArrowRight'] || keys['d']) player.angle += rotSpeed;
 
-    // Movement calculations (Up/Down or W/S)
     let dx = Math.cos(player.angle) * moveSpeed;
     let dy = Math.sin(player.angle) * moveSpeed;
 
@@ -40,7 +37,6 @@ function updatePlayer() {
         targetY -= dy;
     }
 
-    // Grid collision check (Wall is 1, open space is 0)
     let gridX = Math.floor(targetX);
     let gridY = Math.floor(targetY);
     
@@ -51,16 +47,16 @@ function updatePlayer() {
 }
 
 function castRays() {
-    // 1. Draw Ceiling and Floor gradients
-    ctx.fillStyle = "#1a1a24"; // Ceiling
+    // 1. Draw Ceiling and Floor
+    ctx.fillStyle = "#1a1a24";
     ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT / 2);
     
-    ctx.fillStyle = "#33333f"; // Floor
+    ctx.fillStyle = "#33333f";
     ctx.fillRect(0, SCREEN_HEIGHT / 2, SCREEN_WIDTH, SCREEN_HEIGHT / 2);
 
-    if (typeof MAP_DATA === 'undefined') return;
+    if (typeof MAP_DATA === 'undefined' || typeof player === 'undefined') return;
 
-    // 2. Raycasting loop across screen columns
+    // 2. Raycasting loop
     let numRays = SCREEN_WIDTH;
     let halfFOV = FOV / 2;
 
@@ -85,16 +81,12 @@ function castRays() {
             }
         }
 
-        // Correct fish-eye distortion
         let correctedDist = distanceToWall * Math.cos(rayAngle - player.angle);
         let wallHeight = Math.min(SCREEN_HEIGHT, (SCREEN_HEIGHT / correctedDist));
         let ceiling = (SCREEN_HEIGHT - wallHeight) / 2;
 
-        // Distance-based lighting shading
         let shade = Math.max(20, 255 - (distanceToWall * 14));
         ctx.fillStyle = `rgb(${shade}, ${shade / 2}, ${shade / 4})`;
-
-        // Draw vertical wall strip
         ctx.fillRect(i, ceiling, 1, wallHeight);
     }
 }
@@ -106,4 +98,9 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
+// Start game loop once DOM and scripts are verified
+window.addEventListener('load', () => {
+    gameLoop();
+});
+// Fallback direct call just in case
 gameLoop();
