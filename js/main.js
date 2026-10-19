@@ -123,7 +123,7 @@ function init() {
         }
     });
 
-    // Keyboard controls ('I', 'R', 'A')
+    // Keyboard controls ('I', 'R', 'A', 'P')
     window.addEventListener('keydown', (e) => {
         if (e.key === 'i' || e.key === 'I') {
             const modal = document.getElementById('inventory-modal');
@@ -149,10 +149,23 @@ function init() {
                 }
             });
         }
+        if (e.key === 'p' || e.key === 'P') {
+            audioManager.playSpell();
+            logMessage(`[SYSTEM AI]: PRINCESS DONUT activates skill: Royal Laser Purr! Cyan death beams strike all surrounding foes!`);
+            monsters.forEach(m => {
+                if (!m.isDead && m.group.position.distanceTo(donut.getPosition()) < 8.0) {
+                    const killed = m.takeDamage(35);
+                    if (killed) {
+                        combatEngine.handleCorpseCollapse(m);
+                        logMessage(`[SYSTEM AI]: Donut obliterated ${m.name}! Such majesty! Right-click body to loot.`);
+                    }
+                }
+            });
+        }
     });
 
     animate();
-    logMessage("[SYSTEM AI]: Engine initialized successfully.");
+    logMessage("[SYSTEM AI]: Engine initialized successfully. Press P for Donut's Royal Laser Purr.");
 }
 
 function updateMouseTarget(e) {
