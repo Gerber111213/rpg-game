@@ -79,8 +79,8 @@ export class DungeonBuilder {
         const roomObj = { x, y, w, h, isSafe };
         this.rooms.push(roomObj);
 
-        const bridgeX = Math.floor(prev.x + prev.w/2);
-        const bridgeZ = Math.floor(prev.y + prev.h/2);
+        const bridgeX = Math.floor(prevRoom.x + prevRoom.w/2);
+        const bridgeZ = Math.floor(prevRoom.y + prevRoom.h/2);
         const targetX = Math.floor(x + w/2);
         const targetZ = Math.floor(y + h/2);
 
