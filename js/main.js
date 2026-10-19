@@ -19,6 +19,9 @@ let raycaster = new THREE.Raycaster();
 let mouse = new THREE.Vector2();
 let planeMesh;
 
+// Visited history trail for the minimap
+let visitedPositions = [];
+
 function init() {
     const container = document.getElementById('game-container');
     if (!container) return;
@@ -49,7 +52,7 @@ function init() {
     inventoryManager.game = window; // Link for potion belt use
     combatEngine = new CombatEngine(scene, inventoryManager);
 
-    // Spawn Characters in First Room
+    // Spawn Characters in First Safe Room
     const spawnRoom = dungeonData.rooms[0];
     const spawnX = (spawnRoom.x + Math.floor(spawnRoom.w / 2)) * dungeonBuilder.tileSize;
     const spawnZ = (spawnRoom.y + Math.floor(spawnRoom.h / 2)) * dungeonBuilder.tileSize;
@@ -60,7 +63,7 @@ function init() {
     donut = new Donut3D(scene, spawnX + 2, spawnZ);
     mordecai = new Mordecai3D(scene, spawnX - 2, spawnZ);
 
-    // Spawn Monsters across other rooms
+    // Spawn Monsters across OTHER rooms (Strictly skipping index 0 safe room)
     for (let i = 1; i < dungeonData.rooms.length; i++) {
         if (Math.random() < 0.7) {
             const r = dungeonData.rooms[i];
@@ -203,7 +206,7 @@ function logMessage(text) {
     }
 }
 
-function drawHeatmap() {
+function drawMinimap() {
     const canvas = document.getElementById('heatmap-canvas');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -215,11 +218,22 @@ function drawHeatmap() {
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
 
-    // Draw Carl (Cyan Dot)
-    ctx.fillStyle = '#00ffcc';
-    ctx.beginPath();
-    ctx.arc(cx, cy, 4, 0, Math.PI * 2);
-    ctx.fill();
+    // Record history trail (throttled slightly so we don't spam array)
+    if (visitedPositions.length === 0 || visitedPositions[visitedPositions.length - 1].distanceTo(carlPos) > 1.5) {
+        visitedPositions.push(carlPos.clone());
+    }
+
+    // Draw historical exploration trail (Faint Blue/Cyan Dots)
+    ctx.fillStyle = 'rgba(0, 255, 204, 0.25)';
+    visitedPositions.forEach(pos => {
+        const dx = (pos.x - carlPos.x) * scale;
+        const dz = (pos.z - carlPos.z) * scale;
+        if (Math.abs(dx) < canvas.width && Math.abs(dz) < canvas.height) {
+            ctx.beginPath();
+            ctx.arc(cx + dx, cy + dz, 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    });
 
     // Draw Monsters (Red Dots)
     monsters.forEach(m => {
@@ -233,6 +247,12 @@ function drawHeatmap() {
             ctx.fill();
         }
     });
+
+    // Draw Carl (Bright Cyan Dot)
+    ctx.fillStyle = '#00ffcc';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+    ctx.fill();
 }
 
 function animate() {
@@ -264,7 +284,7 @@ function animate() {
         m.updateUI(camera);
     });
 
-    drawHeatmap();
+    drawMinimap();
     renderer.render(scene, camera);
 }
 
