@@ -37,6 +37,7 @@ export class DungeonBuilder {
       }
 
       if (!overlap || i === 0) {
+        // Room 0 (Starting Room) is ALWAYS safe and completely monster-free!
         const isSafe = (i === 0 || i % 7 === 0); 
         for (let rx = x; rx < x + w; rx++) {
           for (let ry = y; ry < y + h; ry++) {
@@ -86,7 +87,6 @@ export class DungeonBuilder {
           floor.position.set(posX, -0.2, posZ);
           this.scene.add(floor);
         } else {
-          // Check if this wall is adjacent to any floor tile so we don't render millions of hidden solid-rock cubes in the void
           if (this.hasAdjacentFloor(r, c)) {
             const wall = new THREE.Mesh(wallGeo, wallMat);
             wall.position.set(posX, 2.5, posZ);
