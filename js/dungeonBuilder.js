@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import { WorldObjectsBuilder } from './worldObjects.js';
 
 export class DungeonBuilder {
   constructor(scene) {
@@ -8,8 +8,7 @@ export class DungeonBuilder {
     this.gridRows = 60;
     this.grid = Array.from({ length: this.gridRows }, () => Array(this.gridCols).fill(0));
     this.rooms = [];
-    this.torches = [];
-    this.doors = [];
+    this.worldBuilder = new WorldObjectsBuilder(scene, this.tileSize);
   }
 
   build() {
@@ -18,7 +17,7 @@ export class DungeonBuilder {
     return { 
       grid: this.grid, 
       rooms: this.rooms,
-      doors: this.doors
+      doors: this.worldBuilder.doors
     };
   }
 
@@ -59,9 +58,8 @@ export class DungeonBuilder {
 
           this.carveCorridor(bridgeX, targetX, bridgeZ, targetZ);
 
-          // If this corridor connects directly from the safe starting room (Room 0), place double swinging doors!
           if (i === 1) {
-            this.createSwingingDoors(bridgeX * this.tileSize, bridgeZ * this.tileSize);
+            this.worldBuilder.createSwingingDoors(bridgeX * this.tileSize, bridgeZ * this.tileSize);
           }
         }
       }
@@ -79,58 +77,20 @@ export class DungeonBuilder {
     }
   }
 
-  createSwingingDoors(x, z) {
-    const doorMat = new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.8 });
-    const trimMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.8 }); // Gold trim
-
-    const leftGroup = new THREE.Group();
-    const rightGroup = new THREE.Group();
-
-    const panelGeo = new THREE.BoxGeometry(1.8, 4.2, 0.2);
-    
-    const leftMesh = new THREE.Mesh(panelGeo, doorMat);
-    leftMesh.position.set(-0.9, 2.1, 0);
-    leftGroup.add(leftMesh);
-
-    const rightMesh = new THREE.Mesh(panelGeo, doorMat);
-    rightMesh.position.set(0.9, 2.1, 0);
-    rightGroup.add(rightMesh);
-
-    leftGroup.position.set(x - 1.0, 0, z);
-    rightGroup.position.set(x + 1.0, 0, z);
-
-    // Store references for animation/interaction if desired
-    this.scene.add(leftGroup);
-    this.scene.add(rightGroup);
-    this.doors.push({ left: leftGroup, right: rightGroup, isOpen: false });
-  }
-
   render3DWorld() {
-    const floorGeo = new THREE.BoxGeometry(this.tileSize, 0.4, this.tileSize);
-    const wallGeo = new THREE.BoxGeometry(this.tileSize, 5.0, this.tileSize);
-
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0x4a4238, roughness: 0.7 });
-    const safeFloorMat = new THREE.MeshStandardMaterial({ color: 0x2e5b75, roughness: 0.5 });
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0x7c7c8c, roughness: 0.6, metalness: 0.1 });
-
     for (let r = 0; r < this.gridRows; r++) {
       for (let c = 0; c < this.gridCols; c++) {
         const posX = c * this.tileSize;
         const posZ = r * this.tileSize;
 
         if (this.grid[r][c] > 0) {
-          const mat = this.grid[r][c] === 2 ? safeFloorMat : floorMat;
-          const floor = new THREE.Mesh(floorGeo, mat);
-          floor.position.set(posX, -0.2, posZ);
-          this.scene.add(floor);
+          const isSafe = this.grid[r][c] === 2;
+          this.worldBuilder.createFloor(posX, posZ, isSafe);
         } else {
           if (this.hasAdjacentFloor(r, c)) {
-            const wall = new THREE.Mesh(wallGeo, wallMat);
-            wall.position.set(posX, 2.5, posZ);
-            this.scene.add(wall);
-
+            this.worldBuilder.createWall(posX, posZ);
             if (Math.random() < 0.05) {
-              this.addSconce(posX, 3.0, posZ);
+              this.worldBuilder.createSconce(posX, 3.0, posZ);
             }
           }
         }
@@ -148,16 +108,5 @@ export class DungeonBuilder {
       }
     }
     return false;
-  }
-
-  addSconce(x, y, z) {
-    const flame = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffaa33 }));
-    flame.position.set(x, y, z);
-    this.scene.add(flame);
-
-    const light = new THREE.PointLight(0xff9922, 2.0, 12);
-    light.position.set(x, y, z);
-    this.scene.add(light);
-    this.torches.push(light);
   }
 }
